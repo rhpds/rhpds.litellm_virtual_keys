@@ -132,6 +132,16 @@
       ansible.builtin.set_fact:
         _litellm_request_body: "{{ _litellm_request_body | combine({'max_budget': ocp4_workload_litellm_virtual_keys_max_budget}) }}"
 
+    # Debug: Show the API request being sent
+    - name: Debug API request
+      ansible.builtin.debug:
+        msg:
+          - "API URL: {{ litellm_url }}/key/generate"
+          - "Request Body: {{ _litellm_request_body | to_nice_json }}"
+          - "Models: {{ _litellm_request_body.models }}"
+          - "Duration: {{ _litellm_request_body.duration }}"
+          - "Key Alias: {{ _litellm_request_body.key_alias }}"
+
     # Call the LiteLLM API to generate the key
     # Status codes:
     #   200/201: Key created successfully
@@ -163,10 +173,16 @@
     - name: Debug API response status
       ansible.builtin.debug:
         msg:
-          - "API Status: {{ _litellm_api_response.status }}"
+          - "========================================="
+          - "API RESPONSE DEBUG"
+          - "========================================="
+          - "HTTP Status: {{ _litellm_api_response.status }}"
           - "Key Created: {{ _litellm_key_created }}"
           - "Key Already Exists: {{ _litellm_key_already_exists }}"
-          - "Response: {{ _litellm_api_response.json | default('No JSON') }}"
+          - "Full Response: {{ _litellm_api_response.json | to_nice_json }}"
+          - "Response Keys: {{ _litellm_api_response.json.keys() | list if _litellm_api_response.json is defined else 'No JSON' }}"
+          - "Key Value in Response: {{ _litellm_api_response.json.key | default('NOT FOUND') }}"
+          - "========================================="
 
     # -----------------------------------------------------------------------------
     # Step 10: Extract Key from Response
