@@ -70,7 +70,17 @@
     _litellm_user_id: "{{ ocp4_workload_litellm_virtual_keys_user_id_format }}"
 
 # -----------------------------------------------------------------------------
-# Step 6: Build Metadata
+# Step 6: Set API Endpoint
+# -----------------------------------------------------------------------------
+# Set this early so it's available for all subsequent tasks
+- name: Set API endpoint
+  ansible.builtin.set_fact:
+    litellm_api_endpoint: "{{ litellm_url }}"
+    litellm_available_models: "{{ _litellm_models }}"
+    litellm_key_duration: "{{ _litellm_duration }}"
+
+# -----------------------------------------------------------------------------
+# Step 7: Build Metadata
 # -----------------------------------------------------------------------------
 # Metadata is used for tracking and auditing in LiteLLM
 - name: Build metadata
@@ -84,7 +94,7 @@
       catalog_item: "{{ catalog_item | default('unknown') }}"
 
 # -----------------------------------------------------------------------------
-# Step 7: Display Key Creation Details
+# Step 8: Display Key Creation Details
 # -----------------------------------------------------------------------------
 - name: Display key creation details
   ansible.builtin.debug:
@@ -101,7 +111,7 @@
       - "========================================="
 
 # -----------------------------------------------------------------------------
-# Step 8: Create Virtual Key via LiteLLM API
+# Step 9: Create Virtual Key via LiteLLM API
 # -----------------------------------------------------------------------------
 - name: Create virtual key via LiteLLM API
   block:
@@ -149,31 +159,25 @@
         _litellm_key_already_exists: "{{ _litellm_api_response.status == 400 and 'already exists' in (_litellm_api_response.json.error.message | default('')) }}"
 
     # -----------------------------------------------------------------------------
-    # Step 9: Extract Key from Response (New Key)
+    # Step 10: Extract Key from Response (New Key)
     # -----------------------------------------------------------------------------
     - name: Extract generated key from response (new key)
       when: _litellm_key_created
       ansible.builtin.set_fact:
         litellm_virtual_key: "{{ _litellm_api_response.json.key }}"
         litellm_key_alias: "{{ _litellm_key_alias }}"
-        litellm_api_endpoint: "{{ litellm_url }}"
-        litellm_available_models: "{{ _litellm_models }}"
-        litellm_key_duration: "{{ _litellm_duration }}"
 
     # -----------------------------------------------------------------------------
-    # Step 10: Set Facts for Existing Key
+    # Step 11: Set Facts for Existing Key
     # -----------------------------------------------------------------------------
     - name: Set facts for existing key
       when: _litellm_key_already_exists
       ansible.builtin.set_fact:
         litellm_virtual_key: "{{ _litellm_key_alias }}"
         litellm_key_alias: "{{ _litellm_key_alias }}"
-        litellm_api_endpoint: "{{ litellm_url }}"
-        litellm_available_models: "{{ _litellm_models }}"
-        litellm_key_duration: "{{ _litellm_duration }}"
 
     # -----------------------------------------------------------------------------
-    # Step 11: Display Success Messages
+    # Step 12: Display Success Messages
     # -----------------------------------------------------------------------------
     - name: Display virtual key creation success
       when: _litellm_key_created
@@ -201,7 +205,7 @@
           - "========================================="
 
 # -----------------------------------------------------------------------------
-# Step 12: Send User Info Messages (AgnosticD Integration)
+# Step 13: Send User Info Messages (AgnosticD Integration)
 # -----------------------------------------------------------------------------
 # These messages are shown to users in emails and the RHDP UI
 - name: Print user info messages
@@ -224,7 +228,7 @@
   loop: "{{ ocp4_workload_litellm_virtual_keys_user_info_messages }}"
 
 # -----------------------------------------------------------------------------
-# Step 13: Save User Info Data (AgnosticD Integration)
+# Step 14: Save User Info Data (AgnosticD Integration)
 # -----------------------------------------------------------------------------
 # This data is stored for programmatic access via APIs
 - name: Save user info data
