@@ -27,7 +27,7 @@
 
     - name: Delete virtual key using the role
       ansible.builtin.include_role:
-        name: litellm_virtual_key_delete
+        name: rhpds.litellm_virtual_keys.litellm_virtual_key_delete
 
     - name: Display deletion result
       ansible.builtin.debug:

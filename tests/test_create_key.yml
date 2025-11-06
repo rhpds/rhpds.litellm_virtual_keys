@@ -31,7 +31,7 @@
 
     - name: Create virtual key using the role
       ansible.builtin.include_role:
-        name: litellm_virtual_key_create
+        name: rhpds.litellm_virtual_keys.litellm_virtual_key_create
 
     - name: Display created key information
       ansible.builtin.debug:
@@ -48,7 +48,7 @@
 
     - name: Test idempotency - run create again with same GUID
       ansible.builtin.include_role:
-        name: litellm_virtual_key_create
+        name: rhpds.litellm_virtual_keys.litellm_virtual_key_create
 
     - name: Verify key still works
       ansible.builtin.debug:
