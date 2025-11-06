@@ -1,0 +1,117 @@
+---
+# LiteLLM Virtual Key Delete - Main Tasks
+
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - litellm_url is defined
+      - litellm_url | length > 0
+      - litellm_master_key is defined
+      - litellm_master_key | length > 0
+    fail_msg: "Required variables missing: litellm_url, litellm_master_key"
+    quiet: true
+
+- name: Validate deletion method
+  when: litellm_delete_method == "by_alias"
+  ansible.builtin.assert:
+    that:
+      - guid is defined
+      - guid | length > 0
+    fail_msg: "GUID required for by_alias deletion method"
+    quiet: true
+
+- name: Validate key_id for by_key_id method
+  when: litellm_delete_method == "by_key_id"
+  ansible.builtin.assert:
+    that:
+      - litellm_key_id is defined
+      - litellm_key_id | length > 0
+    fail_msg: "litellm_key_id required for by_key_id deletion method"
+    quiet: true
+
+- name: Set key alias for deletion
+  when: litellm_delete_method == "by_alias"
+  ansible.builtin.set_fact:
+    _litellm_key_to_delete: "{{ litellm_key_alias_format }}"
+    _litellm_deletion_label: "alias '{{ litellm_key_alias_format }}'"
+
+- name: Set key ID for deletion
+  when: litellm_delete_method == "by_key_id"
+  ansible.builtin.set_fact:
+    _litellm_key_to_delete: "{{ litellm_key_id }}"
+    _litellm_deletion_label: "key ID '{{ litellm_key_id }}'"
+
+- name: Display deletion details
+  ansible.builtin.debug:
+    msg:
+      - "========================================="
+      - "Deleting LiteLLM Virtual Key"
+      - "========================================="
+      - "Method: {{ litellm_delete_method }}"
+      - "Target: {{ _litellm_deletion_label }}"
+      - "========================================="
+
+- name: Check if virtual key exists before deletion
+  ansible.builtin.uri:
+    url: "{{ litellm_url }}/key/info?key={{ _litellm_key_to_delete }}"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ litellm_master_key }}"
+      Content-Type: "application/json"
+    validate_certs: "{{ litellm_verify_ssl }}"
+    timeout: "{{ litellm_api_timeout }}"
+    status_code: [200, 404]
+  register: _litellm_key_check
+  failed_when: false
+
+- name: Set key exists flag
+  ansible.builtin.set_fact:
+    _litellm_key_exists: "{{ _litellm_key_check.status == 200 }}"
+
+- name: Handle missing key
+  when: not _litellm_key_exists
+  block:
+    - name: Fail if key doesn't exist and fail_if_missing is true
+      when: litellm_fail_if_missing
+      ansible.builtin.fail:
+        msg: "Virtual key {{ _litellm_deletion_label }} does not exist"
+
+    - name: Skip deletion if key doesn't exist
+      when: not litellm_fail_if_missing
+      ansible.builtin.debug:
+        msg: "Virtual key {{ _litellm_deletion_label }} does not exist. Nothing to delete."
+
+- name: Delete virtual key via LiteLLM API
+  when: _litellm_key_exists
+  block:
+    - name: Call LiteLLM key deletion API
+      ansible.builtin.uri:
+        url: "{{ litellm_url }}/key/delete"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ litellm_master_key }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          keys: ["{{ _litellm_key_to_delete }}"]
+        validate_certs: "{{ litellm_verify_ssl }}"
+        timeout: "{{ litellm_api_timeout }}"
+        status_code: [200, 201, 204]
+      register: _litellm_delete_response
+      retries: "{{ litellm_retry_count }}"
+      delay: "{{ litellm_retry_delay }}"
+      until: _litellm_delete_response is succeeded
+
+    - name: Display deletion success
+      ansible.builtin.debug:
+        msg:
+          - "========================================="
+          - "Virtual Key Deleted Successfully!"
+          - "========================================="
+          - "Deleted: {{ _litellm_deletion_label }}"
+          - "========================================="
+
+- name: Set deletion result fact
+  ansible.builtin.set_fact:
+    litellm_key_deleted: "{{ _litellm_key_exists }}"
+    litellm_key_was_missing: "{{ not _litellm_key_exists }}"

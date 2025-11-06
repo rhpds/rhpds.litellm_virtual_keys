@@ -1,0 +1,21 @@
+---
+galaxy_info:
+  role_name: litellm_virtual_key_create
+  namespace: rhpds
+  author: Prakhar Srivastava
+  description: Create LiteLLM virtual keys for RHDP lab environments
+  company: Red Hat
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: GenericLinux
+      versions:
+        - any
+  galaxy_tags:
+    - litellm
+    - ai
+    - keys
+    - rhdp
+    - agnosticd
+
+dependencies: []

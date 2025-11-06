@@ -1,0 +1,30 @@
+---
+namespace: rhpds
+name: litellm_virtual_keys
+version: 0.1.0
+readme: README.md
+authors:
+  - Prakhar Srivastava <psrivast@redhat.com>
+  - Ashok Jammula <ajammula@redhat.com>
+description: |
+  Ansible collection for managing LiteLLM virtual keys in RHDP environments.
+
+  Credits:
+  - Tony Kay - LiteMaaS upstream project
+  - Ritesh Shah - Architecture and design guidance
+license:
+  - MIT
+tags:
+  - litellm
+  - ai
+  - keys
+  - rhdp
+  - agnosticd
+repository: https://github.com/rhpds/rhpds.litellm_virtual_keys
+documentation: https://github.com/rhpds/rhpds.litellm_virtual_keys/blob/main/README.md
+homepage: https://github.com/rhpds/rhpds.litellm_virtual_keys
+issues: https://github.com/rhpds/rhpds.litellm_virtual_keys/issues
+build_ignore:
+  - .git
+  - .gitignore
+  - .DS_Store
