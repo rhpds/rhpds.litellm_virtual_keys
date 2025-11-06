@@ -87,17 +87,36 @@
   register: _litellm_all_keys
   failed_when: false
 
-- name: Find key by alias
+- name: Initialize found key variable
   ansible.builtin.set_fact:
-    _litellm_found_key: "{{ _litellm_all_keys.json.keys | selectattr('key_alias', 'equalto', _litellm_key_to_delete) | list | first | default(none) }}"
+    _litellm_found_key: null
+
+- name: Find key by alias
   when:
     - _litellm_all_keys.status == 200
     - _litellm_all_keys.json.keys is defined
+  block:
+    - name: Search for matching key
+      ansible.builtin.set_fact:
+        _litellm_matching_keys: "{{ _litellm_all_keys.json.keys | selectattr('key_alias', 'equalto', _litellm_key_to_delete) | list }}"
 
-- name: Set key exists flag
+    - name: Set found key if match exists
+      when: _litellm_matching_keys | length > 0
+      ansible.builtin.set_fact:
+        _litellm_found_key: "{{ _litellm_matching_keys[0] }}"
+
+- name: Set key exists flag and hash
   ansible.builtin.set_fact:
-    _litellm_key_exists: "{{ _litellm_found_key is not none }}"
-    _litellm_key_hash: "{{ _litellm_found_key.token if _litellm_found_key is not none else '' }}"
+    _litellm_key_exists: "{{ _litellm_found_key is not none and _litellm_found_key != None }}"
+    _litellm_key_hash: "{{ _litellm_found_key.token if (_litellm_found_key is not none and _litellm_found_key != None) else '' }}"
+
+- name: Debug key search results
+  ansible.builtin.debug:
+    msg:
+      - "Key search results:"
+      - "  Looking for alias: {{ _litellm_key_to_delete }}"
+      - "  Key found: {{ _litellm_key_exists }}"
+      - "  Token hash: {{ _litellm_key_hash if _litellm_key_hash else 'N/A' }}"
 
 # -----------------------------------------------------------------------------
 # Step 5: Handle Missing Key (Idempotent)
