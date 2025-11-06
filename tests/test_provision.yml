@@ -34,6 +34,10 @@
     #   - lab-prod: Granite + Mistral, 90 days
     ocp4_workload_litellm_virtual_keys_subscription_package: "{{ subscription_package | default('ai-developer') }}"
 
+    # Disable user_info for standalone testing (no agnosticd.core collection)
+    ocp4_workload_litellm_virtual_keys_enable_user_info_messages: false
+    ocp4_workload_litellm_virtual_keys_enable_user_info_data: false
+
   tasks:
     # =========================================================================
     # Task 1: Provision virtual key

@@ -114,10 +114,10 @@ ocp4_workload_litellm_virtual_keys_store_key_in_facts: true
 ocp4_workload_litellm_virtual_keys_display_key: true
 
 # -----------------------------------------------------------------------------
-# User Info Settings (AgnosticD integration - Optional)
+# User Info Settings (AgnosticD integration)
 # -----------------------------------------------------------------------------
-# These settings only work when agnosticd.core collection is installed
-# Set agnosticd_core_collection_available=true to enable
+# These settings require agnosticd.core collection to be installed
+# Disable for standalone testing without AgnosticD
 
 # Enable user.info messages (shown to user in email/UI)
 ocp4_workload_litellm_virtual_keys_enable_user_info_messages: true
