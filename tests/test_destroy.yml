@@ -28,6 +28,11 @@
     # Set ACTION to destroy (delete the key)
     ACTION: "destroy"
 
+    # Enable force database deletion (workaround for LiteLLM API bug)
+    ocp4_workload_litellm_virtual_keys_force_db_delete: true
+    ocp4_workload_litellm_virtual_keys_namespace: "rhpds"
+    ocp4_workload_litellm_virtual_keys_postgres_pod: "postgres-0"
+
   tasks:
     # =========================================================================
     # Task 1: Destroy virtual key

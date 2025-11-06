@@ -197,10 +197,65 @@
     - name: Warn if key still exists
       ansible.builtin.debug:
         msg:
-          - "WARNING: Key {{ _litellm_key_to_delete }} still exists after deletion!"
+          - "WARNING: Key {{ _litellm_key_to_delete }} still exists after API deletion!"
           - "This is a known issue with LiteLLM's delete API."
-          - "The key may reappear due to caching or eventual consistency."
+          - "Attempting database deletion if force_db_delete is enabled..."
       when: _litellm_key_still_exists | default(false)
+
+    # ---------------------------------------------------------------------
+    # Force database deletion (workaround for LiteLLM bug)
+    # ---------------------------------------------------------------------
+    - name: Force delete from database (workaround for LiteLLM API bug)
+      when:
+        - _litellm_key_still_exists | default(false)
+        - ocp4_workload_litellm_virtual_keys_force_db_delete | bool
+      block:
+        - name: Delete key directly from PostgreSQL database
+          kubernetes.core.k8s_exec:
+            namespace: "{{ ocp4_workload_litellm_virtual_keys_namespace }}"
+            pod: "{{ ocp4_workload_litellm_virtual_keys_postgres_pod }}"
+            command: >-
+              psql -U postgres -d {{ ocp4_workload_litellm_virtual_keys_postgres_db }} -c
+              "DELETE FROM \"LiteLLM_VerificationToken\" WHERE token = '{{ _litellm_key_hash }}';"
+          register: _litellm_db_delete
+          failed_when: false
+
+        - name: Display database deletion result
+          ansible.builtin.debug:
+            var: _litellm_db_delete
+
+        - name: Wait for database deletion to propagate
+          ansible.builtin.pause:
+            seconds: 2
+
+        - name: Verify database deletion
+          ansible.builtin.uri:
+            url: "{{ litellm_url }}/key/info"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ litellm_master_key }}"
+              Content-Type: "application/json"
+            validate_certs: "{{ ocp4_workload_litellm_virtual_keys_verify_ssl }}"
+            timeout: "{{ ocp4_workload_litellm_virtual_keys_api_timeout }}"
+            status_code: [200]
+          register: _litellm_final_verify
+          failed_when: false
+
+        - name: Check final deletion status
+          ansible.builtin.set_fact:
+            _litellm_key_finally_deleted: "{{ _litellm_final_verify.json.keys | selectattr('key_alias', 'equalto', _litellm_key_to_delete) | list | length == 0 }}"
+          when:
+            - _litellm_final_verify.status == 200
+            - _litellm_final_verify.json.keys is defined
+
+        - name: Display final deletion status
+          ansible.builtin.debug:
+            msg:
+              - "========================================="
+              - "Database Deletion Complete"
+              - "========================================="
+              - "Key {{ _litellm_key_to_delete }}: {{ 'DELETED' if _litellm_key_finally_deleted else 'STILL EXISTS' }}"
+              - "========================================="
 
     - name: Display deletion success
       when: not (_litellm_key_still_exists | default(false))

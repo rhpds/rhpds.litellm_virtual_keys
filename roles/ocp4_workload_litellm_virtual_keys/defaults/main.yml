@@ -134,3 +134,16 @@ ocp4_workload_litellm_virtual_keys_user_info_messages: []
 # -----------------------------------------------------------------------------
 # Options: "by_alias" (default) or "by_key_id"
 ocp4_workload_litellm_virtual_keys_delete_method: "by_alias"
+
+# Enable direct database deletion (workaround for LiteLLM delete API bug)
+# Requires access to postgres pod in the same namespace
+ocp4_workload_litellm_virtual_keys_force_db_delete: false
+
+# Postgres pod name (only used if force_db_delete is true)
+ocp4_workload_litellm_virtual_keys_postgres_pod: "postgres-0"
+
+# Postgres database name
+ocp4_workload_litellm_virtual_keys_postgres_db: "litellm"
+
+# Namespace where LiteLLM and Postgres are deployed
+ocp4_workload_litellm_virtual_keys_namespace: "rhpds"
