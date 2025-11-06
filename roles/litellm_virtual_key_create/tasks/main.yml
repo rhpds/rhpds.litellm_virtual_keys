@@ -67,30 +67,7 @@
       - "User ID: {{ _litellm_user_id }}"
       - "========================================="
 
-- name: Check if virtual key already exists (idempotency)
-  ansible.builtin.uri:
-    url: "{{ litellm_url }}/key/info?key={{ _litellm_key_alias }}"
-    method: GET
-    headers:
-      Authorization: "Bearer {{ litellm_master_key }}"
-      Content-Type: "application/json"
-    validate_certs: "{{ litellm_verify_ssl }}"
-    timeout: "{{ litellm_api_timeout }}"
-    status_code: [200, 404]
-  register: _litellm_key_check
-  failed_when: false
-
-- name: Set key exists flag
-  ansible.builtin.set_fact:
-    _litellm_key_exists: "{{ _litellm_key_check.status == 200 }}"
-
-- name: Skip key creation if already exists
-  when: _litellm_key_exists
-  ansible.builtin.debug:
-    msg: "Virtual key '{{ _litellm_key_alias }}' already exists. Skipping creation."
-
 - name: Create virtual key via LiteLLM API
-  when: not _litellm_key_exists
   block:
     - name: Build API request body
       ansible.builtin.set_fact:
@@ -117,13 +94,19 @@
         body: "{{ _litellm_request_body }}"
         validate_certs: "{{ litellm_verify_ssl }}"
         timeout: "{{ litellm_api_timeout }}"
-        status_code: [200, 201]
+        status_code: [200, 201, 400]
       register: _litellm_api_response
-      retries: "{{ litellm_retry_count }}"
-      delay: "{{ litellm_retry_delay }}"
-      until: _litellm_api_response is succeeded
+      failed_when:
+        - _litellm_api_response.status == 400
+        - "'already exists' not in (_litellm_api_response.json.error.message | default(''))"
 
-    - name: Extract generated key from response
+    - name: Set key created flag
+      ansible.builtin.set_fact:
+        _litellm_key_created: "{{ _litellm_api_response.status in [200, 201] }}"
+        _litellm_key_already_exists: "{{ _litellm_api_response.status == 400 and 'already exists' in (_litellm_api_response.json.error.message | default('')) }}"
+
+    - name: Extract generated key from response (new key)
+      when: _litellm_key_created
       ansible.builtin.set_fact:
         litellm_virtual_key: "{{ _litellm_api_response.json.key }}"
         litellm_key_alias: "{{ _litellm_key_alias }}"
@@ -131,7 +114,17 @@
         litellm_available_models: "{{ _litellm_models }}"
         litellm_key_duration: "{{ _litellm_duration }}"
 
+    - name: Set facts for existing key
+      when: _litellm_key_already_exists
+      ansible.builtin.set_fact:
+        litellm_virtual_key: "{{ _litellm_key_alias }}"
+        litellm_key_alias: "{{ _litellm_key_alias }}"
+        litellm_api_endpoint: "{{ litellm_url }}"
+        litellm_available_models: "{{ _litellm_models }}"
+        litellm_key_duration: "{{ _litellm_duration }}"
+
     - name: Display virtual key creation success
+      when: _litellm_key_created
       ansible.builtin.debug:
         msg:
           - "========================================="
@@ -144,23 +137,13 @@
           - "Duration: {{ litellm_key_duration }}"
           - "========================================="
 
-- name: Retrieve existing key if it already existed
-  when: _litellm_key_exists
-  block:
-    - name: Set facts from existing key
-      ansible.builtin.set_fact:
-        litellm_virtual_key: "{{ _litellm_key_check.json.key }}"
-        litellm_key_alias: "{{ _litellm_key_alias }}"
-        litellm_api_endpoint: "{{ litellm_url }}"
-        litellm_available_models: "{{ _litellm_models }}"
-        litellm_key_duration: "{{ _litellm_duration }}"
-
     - name: Display existing key info
+      when: _litellm_key_already_exists
       ansible.builtin.debug:
         msg:
           - "========================================="
-          - "Using Existing Virtual Key"
+          - "Key Already Exists (Idempotent)"
           - "========================================="
           - "Key Alias: {{ litellm_key_alias }}"
-          - "Virtual Key: {{ litellm_virtual_key }}"
+          - "Note: Using existing key {{ _litellm_key_alias }}"
           - "========================================="
