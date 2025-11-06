@@ -158,22 +158,22 @@
         _litellm_key_created: "{{ _litellm_api_response.status in [200, 201] }}"
         _litellm_key_already_exists: "{{ _litellm_api_response.status == 400 and 'already exists' in (_litellm_api_response.json.error.message | default('')) }}"
 
-    # -----------------------------------------------------------------------------
-    # Step 10: Extract Key from Response (New Key)
-    # -----------------------------------------------------------------------------
-    - name: Extract generated key from response (new key)
-      when: _litellm_key_created
-      ansible.builtin.set_fact:
-        litellm_virtual_key: "{{ _litellm_api_response.json.key }}"
-        litellm_key_alias: "{{ _litellm_key_alias }}"
+    # Debug API response to understand what happened
+    - name: Debug API response status
+      ansible.builtin.debug:
+        msg:
+          - "API Status: {{ _litellm_api_response.status }}"
+          - "Key Created: {{ _litellm_key_created }}"
+          - "Key Already Exists: {{ _litellm_key_already_exists }}"
+          - "Response: {{ _litellm_api_response.json | default('No JSON') }}"
 
     # -----------------------------------------------------------------------------
-    # Step 11: Set Facts for Existing Key
+    # Step 10: Extract Key from Response
     # -----------------------------------------------------------------------------
-    - name: Set facts for existing key
-      when: _litellm_key_already_exists
+    # Set the virtual key based on whether it's new or existing
+    - name: Set virtual key facts
       ansible.builtin.set_fact:
-        litellm_virtual_key: "{{ _litellm_key_alias }}"
+        litellm_virtual_key: "{{ _litellm_api_response.json.key if _litellm_key_created else _litellm_key_alias }}"
         litellm_key_alias: "{{ _litellm_key_alias }}"
 
     # -----------------------------------------------------------------------------
