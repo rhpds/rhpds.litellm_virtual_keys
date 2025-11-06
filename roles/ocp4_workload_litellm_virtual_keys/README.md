@@ -90,3 +90,37 @@ After provisioning, the following facts are set:
     - debug:
         msg: "Virtual Key: {{ litellm_virtual_key }}"
 ```
+
+## Troubleshooting
+
+### Get LiteLLM Master Key
+
+The master key is required to authenticate with the LiteLLM API. To retrieve it:
+
+```bash
+# 1. Find LiteLLM deployment and check environment variables
+oc get deployment -n rhpds -o yaml | grep -A 3 LITELLM_MASTER_KEY
+
+# 2. Check secrets in the namespace
+oc get secrets -n rhpds | grep litellm
+
+# Extract master key from secret (if stored there)
+oc get secret <secret-name> -n rhpds -o jsonpath='{.data.LITELLM_MASTER_KEY}' | base64 -d
+```
+
+The master key should start with `sk-` (e.g., `sk-1234567890abcdef...`).
+
+### Common Issues
+
+**401 Authentication Error**: Master key is incorrect or not in `sk-` format
+- Verify the master key starts with `sk-`
+- Check that you're using the actual key, not a hash
+
+**Key Already Exists**: The key with this GUID already exists
+- Run with `ACTION: destroy` first to delete the old key
+- Or use a different GUID
+
+**Double Slash in URL**: The `litellm_url` should not have a trailing slash
+- ✅ Correct: `https://litellm-rhpds.apps.cluster.com`
+- ❌ Wrong: `https://litellm-rhpds.apps.cluster.com/`
+```
