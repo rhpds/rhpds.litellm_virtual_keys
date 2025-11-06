@@ -201,11 +201,14 @@
           - "========================================="
 
 # -----------------------------------------------------------------------------
-# Step 12: Send User Info Messages (AgnosticD Integration)
+# Step 12: Send User Info Messages (AgnosticD Integration - Optional)
 # -----------------------------------------------------------------------------
 # These messages are shown to users in emails and the RHDP UI
+# Only runs if agnosticd.core collection is available
 - name: Print user info messages
-  when: ocp4_workload_litellm_virtual_keys_enable_user_info_messages | bool
+  when:
+    - ocp4_workload_litellm_virtual_keys_enable_user_info_messages | bool
+    - agnosticd_core_collection_available | default(false) | bool
   agnosticd.core.agnosticd_user_info:
     msg: "{{ item }}"
   loop:
@@ -219,16 +222,20 @@
   when:
     - ocp4_workload_litellm_virtual_keys_enable_user_info_messages | bool
     - ocp4_workload_litellm_virtual_keys_user_info_messages | length > 0
+    - agnosticd_core_collection_available | default(false) | bool
   agnosticd.core.agnosticd_user_info:
     msg: "{{ item }}"
   loop: "{{ ocp4_workload_litellm_virtual_keys_user_info_messages }}"
 
 # -----------------------------------------------------------------------------
-# Step 13: Save User Info Data (AgnosticD Integration)
+# Step 13: Save User Info Data (AgnosticD Integration - Optional)
 # -----------------------------------------------------------------------------
 # This data is stored for programmatic access via APIs
+# Only runs if agnosticd.core collection is available
 - name: Save user info data
-  when: ocp4_workload_litellm_virtual_keys_enable_user_info_data | bool
+  when:
+    - ocp4_workload_litellm_virtual_keys_enable_user_info_data | bool
+    - agnosticd_core_collection_available | default(false) | bool
   agnosticd.core.agnosticd_user_info:
     data:
       litellm_api_endpoint: "{{ litellm_api_endpoint }}"
