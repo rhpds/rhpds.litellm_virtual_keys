@@ -1,40 +1,48 @@
 ---
-# Test playbook for litellm_virtual_key_delete role
+# =============================================================================
+# Test Playbook: LiteLLM Virtual Key Deletion
+# =============================================================================
+# Purpose: Test deleting virtual keys by GUID
+#
+# Usage:
+#   ansible-playbook test_delete_key.yml \
+#     -e litellm_url="https://litellm-rhpds.apps.cluster.com" \
+#     -e litellm_master_key="sk-xxxxx"
+#
+# Optional parameters:
+#   -e guid="custom-guid"    # Default: test123
+#
+# Note: This will delete the key created by test_create_key.yml
+# =============================================================================
+
 - name: Test LiteLLM Virtual Key Deletion
   hosts: localhost
   connection: local
   gather_facts: false
 
   vars:
-    # Test GUID (must match the one created)
+    # Test GUID - this will delete key alias "virtkey-test123"
+    # Must match the GUID used when creating the key
     guid: "test123"
 
-    # LiteLLM connection (pass via -e or vars file)
-    # Example: ansible-playbook test_delete_key.yml -e litellm_url=https://... -e litellm_master_key=sk-...
-    # litellm_url: ""
-    # litellm_master_key: ""
-
   tasks:
-    - name: Display test information
-      ansible.builtin.debug:
-        msg:
-          - "========================================="
-          - "Testing Virtual Key Deletion"
-          - "========================================="
-          - "GUID: {{ guid }}"
-          - "LiteLLM URL: {{ litellm_url }}"
-          - "========================================="
-
-    - name: Delete virtual key using the role
+    # =========================================================================
+    # Task 1: Delete virtual key
+    # =========================================================================
+    # This will delete the key with alias "virtkey-{{ guid }}"
+    # If key doesn't exist, it will gracefully skip (idempotent)
+    # =========================================================================
+    - name: Delete virtual key using the collection role
       ansible.builtin.include_role:
         name: rhpds.litellm_virtual_keys.litellm_virtual_key_delete
 
+    # =========================================================================
+    # Task 2: Display deletion result
+    # =========================================================================
+    # Shows whether the key was deleted or was already missing
+    # =========================================================================
     - name: Display deletion result
       ansible.builtin.debug:
         msg:
-          - "========================================="
-          - "Deletion completed"
-          - "========================================="
           - "Key deleted: {{ litellm_key_deleted }}"
           - "Key was missing: {{ litellm_key_was_missing }}"
-          - "========================================="

@@ -1,55 +1,71 @@
 ---
-# Test playbook for litellm_virtual_key_create role
+# =============================================================================
+# Test Playbook: LiteLLM Virtual Key Creation
+# =============================================================================
+# Purpose: Test creating virtual keys with subscription packages
+#
+# Usage:
+#   ansible-playbook test_create_key.yml \
+#     -e litellm_url="https://litellm-rhpds.apps.cluster.com" \
+#     -e litellm_master_key="sk-xxxxx"
+#
+# Optional parameters:
+#   -e guid="custom-guid"                              # Default: test123
+#   -e litellm_subscription_package="ai-researcher"    # Default: ai-developer
+# =============================================================================
+
 - name: Test LiteLLM Virtual Key Creation
   hosts: localhost
   connection: local
   gather_facts: false
 
   vars:
-    # Test GUID
+    # Test GUID - this will create key alias "virtkey-test123"
     guid: "test123"
 
-    # LiteLLM connection (pass via -e or vars file)
-    # Example: ansible-playbook test_create_key.yml -e litellm_url=https://... -e litellm_master_key=sk-...
-    # litellm_url: ""
-    # litellm_master_key: ""
-
-    # Test with ai-developer subscription
+    # Subscription package options:
+    #   - ai-beginner: Granite only, 7 days
+    #   - ai-developer: Granite + Mistral, 30 days (default)
+    #   - ai-researcher: Granite + Mistral + Llama, 90 days
+    #   - lab-dev: Granite + Mistral, 14 days
+    #   - lab-prod: Granite + Mistral, 90 days
     litellm_subscription_package: "ai-developer"
 
   tasks:
-    - name: Display test information
-      ansible.builtin.debug:
-        msg:
-          - "========================================="
-          - "Testing Virtual Key Creation"
-          - "========================================="
-          - "GUID: {{ guid }}"
-          - "LiteLLM URL: {{ litellm_url }}"
-          - "Subscription: {{ litellm_subscription_package }}"
-          - "========================================="
-
-    - name: Create virtual key using the role
+    # =========================================================================
+    # Task 1: Create virtual key
+    # =========================================================================
+    # This will create a key with alias "virtkey-{{ guid }}"
+    # If key already exists, it will skip creation (idempotent)
+    # =========================================================================
+    - name: Create virtual key using the collection role
       ansible.builtin.include_role:
         name: rhpds.litellm_virtual_keys.litellm_virtual_key_create
 
+    # =========================================================================
+    # Task 2: Display the created key information
+    # =========================================================================
+    # Shows the key details returned by the role
+    # =========================================================================
     - name: Display created key information
       ansible.builtin.debug:
         msg:
-          - "========================================="
-          - "Virtual Key Created!"
-          - "========================================="
           - "Key Alias: {{ litellm_key_alias }}"
           - "Virtual Key: {{ litellm_virtual_key }}"
           - "API Endpoint: {{ litellm_api_endpoint }}"
           - "Models: {{ litellm_available_models | join(', ') }}"
           - "Duration: {{ litellm_key_duration }}"
-          - "========================================="
 
+    # =========================================================================
+    # Task 3: Test idempotency
+    # =========================================================================
+    # Run the role again with the same GUID
+    # Should detect existing key and skip creation
+    # =========================================================================
     - name: Test idempotency - run create again with same GUID
       ansible.builtin.include_role:
         name: rhpds.litellm_virtual_keys.litellm_virtual_key_create
 
-    - name: Verify key still works
+    - name: Idempotency test passed
       ansible.builtin.debug:
-        msg: "Idempotency test passed - key was not recreated"
+        msg: "SUCCESS: Key already existed, creation was skipped (idempotent)"
