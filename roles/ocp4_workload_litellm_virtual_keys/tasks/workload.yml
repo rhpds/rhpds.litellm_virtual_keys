@@ -73,9 +73,10 @@
 # Step 6: Set API Endpoint
 # -----------------------------------------------------------------------------
 # Set this early so it's available for all subsequent tasks
+# Remove trailing slash from URL if present
 - name: Set API endpoint
   ansible.builtin.set_fact:
-    litellm_api_endpoint: "{{ litellm_url }}"
+    litellm_api_endpoint: "{{ litellm_url | regex_replace('/$', '') }}"
     litellm_available_models: "{{ _litellm_models }}"
     litellm_key_duration: "{{ _litellm_duration }}"
 
@@ -171,10 +172,26 @@
     # Step 10: Extract Key from Response
     # -----------------------------------------------------------------------------
     # Set the virtual key based on whether it's new or existing
+    # NOTE: If key already exists, LiteLLM API does not return the actual key value
+    # In that case, we cannot retrieve it and must create a new one with different alias
     - name: Set virtual key facts
       ansible.builtin.set_fact:
-        litellm_virtual_key: "{{ _litellm_api_response.json.key if _litellm_key_created else _litellm_key_alias }}"
+        litellm_virtual_key: "{{ _litellm_api_response.json.key if _litellm_key_created else 'KEY_ALREADY_EXISTS_CANNOT_RETRIEVE' }}"
         litellm_key_alias: "{{ _litellm_key_alias }}"
+
+    # Fail if key already exists (we cannot retrieve existing keys from LiteLLM)
+    - name: Fail if key already exists
+      when: _litellm_key_already_exists
+      ansible.builtin.fail:
+        msg: |
+          Key with alias '{{ _litellm_key_alias }}' already exists but cannot be retrieved.
+          LiteLLM API does not return existing key values for security reasons.
+
+          Options:
+          1. Delete the existing key first using ACTION=destroy
+          2. Use a different GUID to create a new key
+
+          To delete: Run with ACTION=destroy and the same guid
 
     # -----------------------------------------------------------------------------
     # Step 12: Display Success Messages
