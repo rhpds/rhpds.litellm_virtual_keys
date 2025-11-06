@@ -136,7 +136,7 @@
     - name: Debug API request
       ansible.builtin.debug:
         msg:
-          - "API URL: {{ litellm_url }}/key/generate"
+          - "API URL: {{ litellm_api_endpoint }}/key/generate"
           - "Request Body: {{ _litellm_request_body | to_nice_json }}"
           - "Models: {{ _litellm_request_body.models }}"
           - "Duration: {{ _litellm_request_body.duration }}"
@@ -148,7 +148,7 @@
     #   400: Key already exists (idempotent operation)
     - name: Call LiteLLM key generation API
       ansible.builtin.uri:
-        url: "{{ litellm_url }}/key/generate"
+        url: "{{ litellm_api_endpoint }}/key/generate"
         method: POST
         headers:
           Authorization: "Bearer {{ litellm_master_key }}"
