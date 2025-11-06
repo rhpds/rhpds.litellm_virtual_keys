@@ -1,0 +1,40 @@
+---
+# Test playbook for litellm_virtual_key_delete role
+- name: Test LiteLLM Virtual Key Deletion
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    # Test GUID (must match the one created)
+    guid: "test123"
+
+    # LiteLLM connection (pass via -e or vars file)
+    # Example: ansible-playbook test_delete_key.yml -e litellm_url=https://... -e litellm_master_key=sk-...
+    # litellm_url: ""
+    # litellm_master_key: ""
+
+  tasks:
+    - name: Display test information
+      ansible.builtin.debug:
+        msg:
+          - "========================================="
+          - "Testing Virtual Key Deletion"
+          - "========================================="
+          - "GUID: {{ guid }}"
+          - "LiteLLM URL: {{ litellm_url }}"
+          - "========================================="
+
+    - name: Delete virtual key using the role
+      ansible.builtin.include_role:
+        name: litellm_virtual_key_delete
+
+    - name: Display deletion result
+      ansible.builtin.debug:
+        msg:
+          - "========================================="
+          - "Deletion completed"
+          - "========================================="
+          - "Key deleted: {{ litellm_key_deleted }}"
+          - "Key was missing: {{ litellm_key_was_missing }}"
+          - "========================================="

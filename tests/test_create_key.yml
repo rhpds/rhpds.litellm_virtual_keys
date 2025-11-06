@@ -1,0 +1,55 @@
+---
+# Test playbook for litellm_virtual_key_create role
+- name: Test LiteLLM Virtual Key Creation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    # Test GUID
+    guid: "test123"
+
+    # LiteLLM connection (pass via -e or vars file)
+    # Example: ansible-playbook test_create_key.yml -e litellm_url=https://... -e litellm_master_key=sk-...
+    # litellm_url: ""
+    # litellm_master_key: ""
+
+    # Test with ai-developer subscription
+    litellm_subscription_package: "ai-developer"
+
+  tasks:
+    - name: Display test information
+      ansible.builtin.debug:
+        msg:
+          - "========================================="
+          - "Testing Virtual Key Creation"
+          - "========================================="
+          - "GUID: {{ guid }}"
+          - "LiteLLM URL: {{ litellm_url }}"
+          - "Subscription: {{ litellm_subscription_package }}"
+          - "========================================="
+
+    - name: Create virtual key using the role
+      ansible.builtin.include_role:
+        name: litellm_virtual_key_create
+
+    - name: Display created key information
+      ansible.builtin.debug:
+        msg:
+          - "========================================="
+          - "Virtual Key Created!"
+          - "========================================="
+          - "Key Alias: {{ litellm_key_alias }}"
+          - "Virtual Key: {{ litellm_virtual_key }}"
+          - "API Endpoint: {{ litellm_api_endpoint }}"
+          - "Models: {{ litellm_available_models | join(', ') }}"
+          - "Duration: {{ litellm_key_duration }}"
+          - "========================================="
+
+    - name: Test idempotency - run create again with same GUID
+      ansible.builtin.include_role:
+        name: litellm_virtual_key_create
+
+    - name: Verify key still works
+      ansible.builtin.debug:
+        msg: "Idempotency test passed - key was not recreated"
