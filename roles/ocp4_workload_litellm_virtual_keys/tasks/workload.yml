@@ -229,7 +229,7 @@
         that:
           - litellm_virtual_key is defined
           - litellm_virtual_key | length > 0
-          - litellm_virtual_key starts with 'sk-'
+          - litellm_virtual_key is match('^sk-')
         fail_msg: |
           Key was created but no valid key value was returned.
           Got: {{ litellm_virtual_key | default('undefined') }}
