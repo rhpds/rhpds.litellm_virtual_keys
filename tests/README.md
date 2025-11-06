@@ -27,18 +27,20 @@ cd ~/work/code/rhpds.litellm_virtual_keys
 ansible-galaxy collection build --force
 
 # Install locally
-ansible-galaxy collection install rhpds-litellm_virtual_keys-0.1.0.tar.gz --force
+ansible-galaxy collection install rhpds-litellm_virtual_keys-0.2.0.tar.gz --force
 ```
 
 ## Run Tests
 
-### Test 1: Create Virtual Key
+### Test 1: Provision Virtual Key (ACTION=provision)
 
 ```bash
 cd ~/work/code/rhpds.litellm_virtual_keys/tests
 
-# Run create test
-ansible-playbook test_create_key.yml
+# Run provision test
+ansible-playbook test_provision.yml \
+  -e litellm_url="https://${LITELLM_URL}" \
+  -e litellm_master_key="${LITELLM_MASTER_KEY}"
 ```
 
 **Expected Output**:
@@ -46,11 +48,13 @@ ansible-playbook test_create_key.yml
 - Displays the generated virtual key
 - Tests idempotency (second run should skip creation)
 
-### Test 2: Delete Virtual Key
+### Test 2: Destroy Virtual Key (ACTION=destroy)
 
 ```bash
-# Run delete test
-ansible-playbook test_delete_key.yml
+# Run destroy test
+ansible-playbook test_destroy.yml \
+  -e litellm_url="https://${LITELLM_URL}" \
+  -e litellm_master_key="${LITELLM_MASTER_KEY}"
 ```
 
 **Expected Output**:
@@ -61,18 +65,41 @@ ansible-playbook test_delete_key.yml
 
 ```bash
 # Test ai-beginner (Granite only, 7 days)
-ansible-playbook test_create_key.yml -e guid=test-beginner -e litellm_subscription_package=ai-beginner
+ansible-playbook test_provision.yml \
+  -e litellm_url="https://${LITELLM_URL}" \
+  -e litellm_master_key="${LITELLM_MASTER_KEY}" \
+  -e guid=test-beginner \
+  -e subscription_package=ai-beginner
 
 # Test ai-researcher (3 models, 90 days)
-ansible-playbook test_create_key.yml -e guid=test-researcher -e litellm_subscription_package=ai-researcher
+ansible-playbook test_provision.yml \
+  -e litellm_url="https://${LITELLM_URL}" \
+  -e litellm_master_key="${LITELLM_MASTER_KEY}" \
+  -e guid=test-researcher \
+  -e subscription_package=ai-researcher
 
 # Test lab-dev (Granite + Mistral, 14 days)
-ansible-playbook test_create_key.yml -e guid=test-labdev -e litellm_subscription_package=lab-dev
+ansible-playbook test_provision.yml \
+  -e litellm_url="https://${LITELLM_URL}" \
+  -e litellm_master_key="${LITELLM_MASTER_KEY}" \
+  -e guid=test-labdev \
+  -e subscription_package=lab-dev
 
 # Cleanup
-ansible-playbook test_delete_key.yml -e guid=test-beginner
-ansible-playbook test_delete_key.yml -e guid=test-researcher
-ansible-playbook test_delete_key.yml -e guid=test-labdev
+ansible-playbook test_destroy.yml \
+  -e litellm_url="https://${LITELLM_URL}" \
+  -e litellm_master_key="${LITELLM_MASTER_KEY}" \
+  -e guid=test-beginner
+
+ansible-playbook test_destroy.yml \
+  -e litellm_url="https://${LITELLM_URL}" \
+  -e litellm_master_key="${LITELLM_MASTER_KEY}" \
+  -e guid=test-researcher
+
+ansible-playbook test_destroy.yml \
+  -e litellm_url="https://${LITELLM_URL}" \
+  -e litellm_master_key="${LITELLM_MASTER_KEY}" \
+  -e guid=test-labdev
 ```
 
 ## Verify in LiteLLM Admin UI
@@ -93,7 +120,7 @@ After creating a key, test it works:
 VIRTUAL_KEY="sk-xxxxx"
 
 # Test with Granite
-curl https://${LITELLM_URL}/completions \
+curl https://${LITELLM_URL}/v1/completions \
   -H "Authorization: Bearer ${VIRTUAL_KEY}" \
   -H "Content-Type: application/json" \
   -d '{

@@ -1,21 +1,21 @@
 ---
 # =============================================================================
-# Test Playbook: LiteLLM Virtual Key Deletion
+# Test Playbook: LiteLLM Virtual Key Destroy (DELETE)
 # =============================================================================
-# Purpose: Test deleting virtual keys by GUID
+# Purpose: Test deleting virtual keys using the remove_workload.yml pattern
 #
 # Usage:
-#   ansible-playbook test_delete_key.yml \
+#   ansible-playbook test_destroy.yml \
 #     -e litellm_url="https://litellm-rhpds.apps.cluster.com" \
 #     -e litellm_master_key="sk-xxxxx"
 #
 # Optional parameters:
 #   -e guid="custom-guid"    # Default: test123
 #
-# Note: This will delete the key created by test_create_key.yml
+# Note: This will delete the key created by test_provision.yml
 # =============================================================================
 
-- name: Test LiteLLM Virtual Key Deletion
+- name: Test LiteLLM Virtual Key Destroy
   hosts: localhost
   connection: local
   gather_facts: false
@@ -25,16 +25,20 @@
     # Must match the GUID used when creating the key
     guid: "test123"
 
+    # Set ACTION to destroy (delete the key)
+    ACTION: "destroy"
+
   tasks:
     # =========================================================================
-    # Task 1: Delete virtual key
+    # Task 1: Destroy virtual key
     # =========================================================================
-    # This will delete the key with alias "virtkey-{{ guid }}"
+    # Calls the workload role with ACTION=destroy
+    # This executes tasks/remove_workload.yml
     # If key doesn't exist, it will gracefully skip (idempotent)
     # =========================================================================
-    - name: Delete virtual key using the collection role
+    - name: Destroy virtual key using the collection role
       ansible.builtin.include_role:
-        name: rhpds.litellm_virtual_keys.litellm_virtual_key_delete
+        name: rhpds.litellm_virtual_keys.ocp4_workload_litellm_virtual_keys
 
     # =========================================================================
     # Task 2: Display deletion result

@@ -1,0 +1,133 @@
+---
+# =============================================================================
+# LiteLLM Virtual Keys Workload - Default Variables
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Required Variables (must be provided by caller)
+# -----------------------------------------------------------------------------
+# guid: "a1b2c3d4"  # Lab environment GUID
+
+# -----------------------------------------------------------------------------
+# LiteLLM API Connection Settings
+# -----------------------------------------------------------------------------
+# These should be overridden in inventory or vault
+litellm_url: ""
+litellm_master_key: ""
+
+# -----------------------------------------------------------------------------
+# Subscription Package Selection
+# -----------------------------------------------------------------------------
+# Choose one of the predefined packages or use "custom"
+# Options: ai-beginner, ai-developer, ai-researcher, lab-dev, lab-prod, custom
+ocp4_workload_litellm_virtual_keys_subscription_package: "ai-developer"
+
+# -----------------------------------------------------------------------------
+# Custom Model Selection (only used when package is "custom")
+# -----------------------------------------------------------------------------
+ocp4_workload_litellm_virtual_keys_custom_models: []
+ocp4_workload_litellm_virtual_keys_custom_duration: "30d"
+
+# -----------------------------------------------------------------------------
+# Subscription Package Definitions
+# -----------------------------------------------------------------------------
+# Each package defines:
+#   - models: List of AI models accessible with this key
+#   - duration: How long the key is valid (e.g., "7d", "30d", "90d")
+#   - description: Human-readable description
+# -----------------------------------------------------------------------------
+ocp4_workload_litellm_virtual_keys_packages:
+  ai-beginner:
+    models:
+      - "openai/granite-3-2-8b-instruct"
+    duration: "7d"
+    description: "Beginner package with Granite model for 7 days"
+
+  ai-developer:
+    models:
+      - "openai/granite-3-2-8b-instruct"
+      - "openai/mistral-7b-instruct"
+    duration: "30d"
+    description: "Developer package with Granite and Mistral for 30 days"
+
+  ai-researcher:
+    models:
+      - "openai/granite-3-2-8b-instruct"
+      - "openai/mistral-7b-instruct"
+      - "openai/llama-3-8b-instruct"
+    duration: "90d"
+    description: "Researcher package with multiple models for 90 days"
+
+  lab-dev:
+    models:
+      - "openai/granite-3-2-8b-instruct"
+      - "openai/mistral-7b-instruct"
+    duration: "14d"
+    description: "Development lab environment with Granite and Mistral for 14 days"
+
+  lab-prod:
+    models:
+      - "openai/granite-3-2-8b-instruct"
+      - "openai/mistral-7b-instruct"
+    duration: "90d"
+    description: "Production lab environment with Granite and Mistral for 90 days"
+
+# -----------------------------------------------------------------------------
+# Key Naming Convention
+# -----------------------------------------------------------------------------
+# Format: virtkey-{GUID}
+# This creates unique, identifiable keys for each lab environment
+ocp4_workload_litellm_virtual_keys_alias_format: "virtkey-{{ guid }}"
+
+# -----------------------------------------------------------------------------
+# User Identification
+# -----------------------------------------------------------------------------
+# Uses email if provided, otherwise generates from GUID
+ocp4_workload_litellm_virtual_keys_user_id_format: "{{ email | default(guid + '@lab.opentlc.com') }}"
+
+# -----------------------------------------------------------------------------
+# Metadata for Tracking
+# -----------------------------------------------------------------------------
+# Attached to each key for auditing and management
+ocp4_workload_litellm_virtual_keys_metadata:
+  created_by: "agnosticd"
+  environment: "{{ env_type | default('sandbox') }}"
+
+# -----------------------------------------------------------------------------
+# API Settings
+# -----------------------------------------------------------------------------
+ocp4_workload_litellm_virtual_keys_api_timeout: 30
+ocp4_workload_litellm_virtual_keys_verify_ssl: true
+ocp4_workload_litellm_virtual_keys_retry_count: 3
+ocp4_workload_litellm_virtual_keys_retry_delay: 5
+
+# -----------------------------------------------------------------------------
+# Budget Settings
+# -----------------------------------------------------------------------------
+# null = unlimited budget (default for RHDP labs)
+ocp4_workload_litellm_virtual_keys_max_budget: null
+
+# -----------------------------------------------------------------------------
+# Output Settings
+# -----------------------------------------------------------------------------
+ocp4_workload_litellm_virtual_keys_store_key_in_facts: true
+ocp4_workload_litellm_virtual_keys_display_key: true
+
+# -----------------------------------------------------------------------------
+# User Info Settings (AgnosticD integration)
+# -----------------------------------------------------------------------------
+# Enable user.info messages (shown to user in email/UI)
+ocp4_workload_litellm_virtual_keys_enable_user_info_messages: true
+
+# Enable user.info data (stored for automation/API access)
+ocp4_workload_litellm_virtual_keys_enable_user_info_data: true
+
+# Custom user info messages (optional)
+# These will be shown to the user along with the generated key info
+ocp4_workload_litellm_virtual_keys_user_info_messages: []
+
+# -----------------------------------------------------------------------------
+# Delete Method
+# -----------------------------------------------------------------------------
+# Options: "by_alias" (default) or "by_key_id"
+ocp4_workload_litellm_virtual_keys_delete_method: "by_alias"

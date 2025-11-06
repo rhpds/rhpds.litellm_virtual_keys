@@ -1,0 +1,240 @@
+---
+# =============================================================================
+# LiteLLM Virtual Keys Workload - Provision Tasks
+# =============================================================================
+# Creates a virtual key for accessing LiteLLM AI models
+# Key naming: virtkey-{GUID}
+# Supports subscription packages (ai-beginner, ai-developer, etc.)
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Step 1: Validate Required Variables
+# -----------------------------------------------------------------------------
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - guid is defined
+      - guid | length > 0
+      - litellm_url is defined
+      - litellm_url | length > 0
+      - litellm_master_key is defined
+      - litellm_master_key | length > 0
+    fail_msg: "Required variables missing: guid, litellm_url, litellm_master_key"
+    quiet: true
+
+# -----------------------------------------------------------------------------
+# Step 2: Set Key Alias
+# -----------------------------------------------------------------------------
+# Format: virtkey-{GUID}
+# This creates a predictable, unique identifier for each lab environment
+- name: Set key alias based on GUID
+  ansible.builtin.set_fact:
+    _litellm_key_alias: "{{ ocp4_workload_litellm_virtual_keys_alias_format }}"
+
+# -----------------------------------------------------------------------------
+# Step 3: Determine Subscription Package Details
+# -----------------------------------------------------------------------------
+# If using a predefined package, extract models and duration
+- name: Determine subscription package details
+  when: ocp4_workload_litellm_virtual_keys_subscription_package != "custom"
+  ansible.builtin.set_fact:
+    _litellm_models: "{{ ocp4_workload_litellm_virtual_keys_packages[ocp4_workload_litellm_virtual_keys_subscription_package].models }}"
+    _litellm_duration: "{{ ocp4_workload_litellm_virtual_keys_packages[ocp4_workload_litellm_virtual_keys_subscription_package].duration }}"
+    _litellm_package_description: "{{ ocp4_workload_litellm_virtual_keys_packages[ocp4_workload_litellm_virtual_keys_subscription_package].description }}"
+
+# If using custom model selection
+- name: Use custom model selection
+  when: ocp4_workload_litellm_virtual_keys_subscription_package == "custom"
+  ansible.builtin.set_fact:
+    _litellm_models: "{{ ocp4_workload_litellm_virtual_keys_custom_models }}"
+    _litellm_duration: "{{ ocp4_workload_litellm_virtual_keys_custom_duration }}"
+    _litellm_package_description: "Custom model selection"
+
+# -----------------------------------------------------------------------------
+# Step 4: Validate Models List
+# -----------------------------------------------------------------------------
+- name: Validate models list
+  ansible.builtin.assert:
+    that:
+      - _litellm_models is defined
+      - _litellm_models | length > 0
+    fail_msg: "No models specified. Check subscription package or custom model selection."
+    quiet: true
+
+# -----------------------------------------------------------------------------
+# Step 5: Set User ID
+# -----------------------------------------------------------------------------
+# Uses email if provided, otherwise generates from GUID
+- name: Set user ID
+  ansible.builtin.set_fact:
+    _litellm_user_id: "{{ ocp4_workload_litellm_virtual_keys_user_id_format }}"
+
+# -----------------------------------------------------------------------------
+# Step 6: Build Metadata
+# -----------------------------------------------------------------------------
+# Metadata is used for tracking and auditing in LiteLLM
+- name: Build metadata
+  ansible.builtin.set_fact:
+    _litellm_metadata:
+      guid: "{{ guid }}"
+      subscription_package: "{{ ocp4_workload_litellm_virtual_keys_subscription_package }}"
+      models_count: "{{ _litellm_models | length }}"
+      created_by: "{{ ocp4_workload_litellm_virtual_keys_metadata.created_by }}"
+      environment: "{{ ocp4_workload_litellm_virtual_keys_metadata.environment }}"
+      catalog_item: "{{ catalog_item | default('unknown') }}"
+
+# -----------------------------------------------------------------------------
+# Step 7: Display Key Creation Details
+# -----------------------------------------------------------------------------
+- name: Display key creation details
+  ansible.builtin.debug:
+    msg:
+      - "========================================="
+      - "Creating LiteLLM Virtual Key"
+      - "========================================="
+      - "GUID: {{ guid }}"
+      - "Key Alias: {{ _litellm_key_alias }}"
+      - "Subscription: {{ ocp4_workload_litellm_virtual_keys_subscription_package }}"
+      - "Models: {{ _litellm_models | join(', ') }}"
+      - "Duration: {{ _litellm_duration }}"
+      - "User ID: {{ _litellm_user_id }}"
+      - "========================================="
+
+# -----------------------------------------------------------------------------
+# Step 8: Create Virtual Key via LiteLLM API
+# -----------------------------------------------------------------------------
+- name: Create virtual key via LiteLLM API
+  block:
+    # Build the API request body
+    - name: Build API request body
+      ansible.builtin.set_fact:
+        _litellm_request_body:
+          models: "{{ _litellm_models }}"
+          duration: "{{ _litellm_duration }}"
+          user_id: "{{ _litellm_user_id }}"
+          key_alias: "{{ _litellm_key_alias }}"
+          metadata: "{{ _litellm_metadata }}"
+
+    # Add max_budget if specified (null = unlimited)
+    - name: Add max_budget if specified
+      when: ocp4_workload_litellm_virtual_keys_max_budget is not none
+      ansible.builtin.set_fact:
+        _litellm_request_body: "{{ _litellm_request_body | combine({'max_budget': ocp4_workload_litellm_virtual_keys_max_budget}) }}"
+
+    # Call the LiteLLM API to generate the key
+    # Status codes:
+    #   200/201: Key created successfully
+    #   400: Key already exists (idempotent operation)
+    - name: Call LiteLLM key generation API
+      ansible.builtin.uri:
+        url: "{{ litellm_url }}/key/generate"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ litellm_master_key }}"
+          Content-Type: "application/json"
+        body_format: json
+        body: "{{ _litellm_request_body }}"
+        validate_certs: "{{ ocp4_workload_litellm_virtual_keys_verify_ssl }}"
+        timeout: "{{ ocp4_workload_litellm_virtual_keys_api_timeout }}"
+        status_code: [200, 201, 400]
+      register: _litellm_api_response
+      failed_when:
+        - _litellm_api_response.status == 400
+        - "'already exists' not in (_litellm_api_response.json.error.message | default(''))"
+
+    # Determine if key was created or already existed
+    - name: Set key created flag
+      ansible.builtin.set_fact:
+        _litellm_key_created: "{{ _litellm_api_response.status in [200, 201] }}"
+        _litellm_key_already_exists: "{{ _litellm_api_response.status == 400 and 'already exists' in (_litellm_api_response.json.error.message | default('')) }}"
+
+    # -----------------------------------------------------------------------------
+    # Step 9: Extract Key from Response (New Key)
+    # -----------------------------------------------------------------------------
+    - name: Extract generated key from response (new key)
+      when: _litellm_key_created
+      ansible.builtin.set_fact:
+        litellm_virtual_key: "{{ _litellm_api_response.json.key }}"
+        litellm_key_alias: "{{ _litellm_key_alias }}"
+        litellm_api_endpoint: "{{ litellm_url }}"
+        litellm_available_models: "{{ _litellm_models }}"
+        litellm_key_duration: "{{ _litellm_duration }}"
+
+    # -----------------------------------------------------------------------------
+    # Step 10: Set Facts for Existing Key
+    # -----------------------------------------------------------------------------
+    - name: Set facts for existing key
+      when: _litellm_key_already_exists
+      ansible.builtin.set_fact:
+        litellm_virtual_key: "{{ _litellm_key_alias }}"
+        litellm_key_alias: "{{ _litellm_key_alias }}"
+        litellm_api_endpoint: "{{ litellm_url }}"
+        litellm_available_models: "{{ _litellm_models }}"
+        litellm_key_duration: "{{ _litellm_duration }}"
+
+    # -----------------------------------------------------------------------------
+    # Step 11: Display Success Messages
+    # -----------------------------------------------------------------------------
+    - name: Display virtual key creation success
+      when: _litellm_key_created
+      ansible.builtin.debug:
+        msg:
+          - "========================================="
+          - "Virtual Key Created Successfully!"
+          - "========================================="
+          - "Key Alias: {{ litellm_key_alias }}"
+          - "Virtual Key: {{ litellm_virtual_key }}"
+          - "API Endpoint: {{ litellm_api_endpoint }}"
+          - "Models: {{ litellm_available_models | join(', ') }}"
+          - "Duration: {{ litellm_key_duration }}"
+          - "========================================="
+
+    - name: Display existing key info
+      when: _litellm_key_already_exists
+      ansible.builtin.debug:
+        msg:
+          - "========================================="
+          - "Key Already Exists (Idempotent)"
+          - "========================================="
+          - "Key Alias: {{ litellm_key_alias }}"
+          - "Note: Using existing key {{ _litellm_key_alias }}"
+          - "========================================="
+
+# -----------------------------------------------------------------------------
+# Step 12: Send User Info Messages (AgnosticD Integration)
+# -----------------------------------------------------------------------------
+# These messages are shown to users in emails and the RHDP UI
+- name: Print user info messages
+  when: ocp4_workload_litellm_virtual_keys_enable_user_info_messages | bool
+  agnosticd.core.agnosticd_user_info:
+    msg: "{{ item }}"
+  loop:
+    - "LiteLLM API Endpoint: {{ litellm_api_endpoint }}/v1"
+    - "LiteLLM Virtual Key: {{ litellm_virtual_key }}"
+    - "Available Models: {{ litellm_available_models | join(', ') }}"
+    - "Key Duration: {{ litellm_key_duration }}"
+
+# Send any custom messages provided by the caller
+- name: Print custom user info messages
+  when:
+    - ocp4_workload_litellm_virtual_keys_enable_user_info_messages | bool
+    - ocp4_workload_litellm_virtual_keys_user_info_messages | length > 0
+  agnosticd.core.agnosticd_user_info:
+    msg: "{{ item }}"
+  loop: "{{ ocp4_workload_litellm_virtual_keys_user_info_messages }}"
+
+# -----------------------------------------------------------------------------
+# Step 13: Save User Info Data (AgnosticD Integration)
+# -----------------------------------------------------------------------------
+# This data is stored for programmatic access via APIs
+- name: Save user info data
+  when: ocp4_workload_litellm_virtual_keys_enable_user_info_data | bool
+  agnosticd.core.agnosticd_user_info:
+    data:
+      litellm_api_endpoint: "{{ litellm_api_endpoint }}"
+      litellm_api_base_url: "{{ litellm_api_endpoint }}/v1"
+      litellm_virtual_key: "{{ litellm_virtual_key }}"
+      litellm_key_alias: "{{ litellm_key_alias }}"
+      litellm_available_models: "{{ litellm_available_models }}"
+      litellm_key_duration: "{{ litellm_key_duration }}"
+      litellm_subscription_package: "{{ ocp4_workload_litellm_virtual_keys_subscription_package }}"

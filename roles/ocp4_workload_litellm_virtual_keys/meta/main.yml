@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  role_name: ocp4_workload_litellm_virtual_keys
+  author: Prakhar Srivastava (psrivast@redhat.com), Ashok Jammula (ajammula@redhat.com)
+  description: |
+    Manages LiteLLM virtual keys for AI model access in RHDP lab environments.
+    Supports subscription packages (ai-beginner, ai-developer, ai-researcher, lab-dev, lab-prod).
+    Integrates with AgnosticD for automated key provisioning and user notifications.
+  license: MIT
+  min_ansible_version: "2.9"
+  platforms: []
+  galaxy_tags:
+    - litellm
+    - ai
+    - rhdp
+    - agnosticd
+    - openshift
+dependencies: []
