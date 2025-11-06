@@ -105,10 +105,18 @@
       ansible.builtin.set_fact:
         _litellm_found_key: "{{ _litellm_matching_keys[0] }}"
 
+    - name: Debug found key details
+      when: _litellm_matching_keys | length > 0
+      ansible.builtin.debug:
+        msg:
+          - "Found key details:"
+          - "{{ _litellm_found_key }}"
+
 - name: Set key exists flag and hash
   ansible.builtin.set_fact:
     _litellm_key_exists: "{{ _litellm_found_key is not none and _litellm_found_key != None }}"
     _litellm_key_hash: "{{ _litellm_found_key.token if (_litellm_found_key is not none and _litellm_found_key != None) else '' }}"
+    _litellm_key_name: "{{ _litellm_found_key.key_name if (_litellm_found_key is not none and _litellm_found_key != None and _litellm_found_key.key_name is defined) else '' }}"
 
 - name: Debug key search results
   ansible.builtin.debug:
@@ -117,6 +125,7 @@
       - "  Looking for alias: {{ _litellm_key_to_delete }}"
       - "  Key found: {{ _litellm_key_exists }}"
       - "  Token hash: {{ _litellm_key_hash if _litellm_key_hash else 'N/A' }}"
+      - "  Key name: {{ _litellm_key_name if _litellm_key_name else 'N/A' }}"
 
 # -----------------------------------------------------------------------------
 # Step 5: Handle Missing Key (Idempotent)
@@ -156,6 +165,10 @@
       retries: "{{ ocp4_workload_litellm_virtual_keys_retry_count }}"
       delay: "{{ ocp4_workload_litellm_virtual_keys_retry_delay }}"
       until: _litellm_delete_response is succeeded
+
+    - name: Display delete API response
+      ansible.builtin.debug:
+        var: _litellm_delete_response.json
 
     - name: Wait for deletion to propagate
       ansible.builtin.pause:
