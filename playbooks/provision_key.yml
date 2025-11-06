@@ -1,0 +1,42 @@
+---
+# =============================================================================
+# Provision LiteLLM Virtual Key
+# =============================================================================
+# Creates a virtual key for accessing AI models
+#
+# Usage:
+#   ansible-playbook provision_key.yml \
+#     -e guid=user123 \
+#     -e litellm_url=https://litellm-rhpds.apps.cluster.com \
+#     -e litellm_master_key=sk-xxxxx
+#
+# Optional:
+#   -e subscription_package=ai-researcher
+# =============================================================================
+
+- name: Provision LiteLLM Virtual Key
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    ACTION: "provision"
+    ocp4_workload_litellm_virtual_keys_subscription_package: "{{ subscription_package | default('ai-developer') }}"
+
+  tasks:
+    - name: Create virtual key
+      ansible.builtin.include_role:
+        name: rhpds.litellm_virtual_keys.ocp4_workload_litellm_virtual_keys
+
+    - name: Display key information
+      ansible.builtin.debug:
+        msg:
+          - "========================================="
+          - "Virtual Key Created Successfully"
+          - "========================================="
+          - "Key Alias: {{ litellm_key_alias }}"
+          - "Virtual Key: {{ litellm_virtual_key }}"
+          - "API Endpoint: {{ litellm_api_endpoint }}/v1"
+          - "Models: {{ litellm_available_models | join(', ') }}"
+          - "Duration: {{ litellm_key_duration }}"
+          - "========================================="

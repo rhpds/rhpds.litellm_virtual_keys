@@ -1,0 +1,35 @@
+---
+# =============================================================================
+# Destroy LiteLLM Virtual Key
+# =============================================================================
+# Deletes a virtual key by GUID
+#
+# Usage:
+#   ansible-playbook destroy_key.yml \
+#     -e guid=user123 \
+#     -e litellm_url=https://litellm-rhpds.apps.cluster.com \
+#     -e litellm_master_key=sk-xxxxx
+# =============================================================================
+
+- name: Destroy LiteLLM Virtual Key
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    ACTION: "destroy"
+
+  tasks:
+    - name: Delete virtual key
+      ansible.builtin.include_role:
+        name: rhpds.litellm_virtual_keys.ocp4_workload_litellm_virtual_keys
+
+    - name: Display deletion result
+      ansible.builtin.debug:
+        msg:
+          - "========================================="
+          - "Key Deletion Complete"
+          - "========================================="
+          - "Key deleted: {{ litellm_key_deleted }}"
+          - "Key was missing: {{ litellm_key_was_missing }}"
+          - "========================================="
