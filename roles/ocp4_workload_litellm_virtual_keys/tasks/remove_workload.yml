@@ -94,11 +94,17 @@
     _litellm_found_key_hash: ""
     _litellm_key_exists: false
 
-- name: Search for key by alias
+- name: Extract keys list from response
   when:
     - _litellm_key_list.status == 200
     - _litellm_key_list.json.keys is defined
-    - _litellm_key_list.json.keys | length > 0
+  ansible.builtin.set_fact:
+    _litellm_keys_array: "{{ _litellm_key_list.json['keys'] }}"
+
+- name: Search for key by alias
+  when:
+    - _litellm_keys_array is defined
+    - _litellm_keys_array | length > 0
   block:
     - name: Get detailed info for each key and find matching alias
       ansible.builtin.uri:
@@ -111,7 +117,7 @@
         timeout: "{{ ocp4_workload_litellm_virtual_keys_api_timeout }}"
         status_code: [200, 404]
       register: _litellm_key_details
-      loop: "{{ _litellm_key_list.json.keys }}"
+      loop: "{{ _litellm_keys_array }}"
       failed_when: false
 
     - name: Find key with matching alias
