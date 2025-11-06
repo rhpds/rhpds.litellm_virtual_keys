@@ -4,7 +4,7 @@ Manages LiteLLM virtual keys for AI model access in RHDP lab environments.
 
 ## Features
 
-- **Create keys** with subscription packages (ai-beginner, ai-developer, ai-researcher, lab-dev, lab-prod)
+- **Create keys** with custom model selection and duration
 - **Delete keys** by GUID with proper cleanup
 - **GUID-based naming**: `virtkey-{GUID}` for easy tracking
 - **Idempotent**: Safe to run multiple times
@@ -21,6 +21,10 @@ Manages LiteLLM virtual keys for AI model access in RHDP lab environments.
     guid: "user123"
     litellm_url: "https://litellm-rhpds.apps.cluster.com"
     litellm_master_key: "sk-xxxxx"
+    ocp4_workload_litellm_virtual_keys_models:
+      - "openai/granite-3-2-8b-instruct"
+      - "openai/mistral-7b-instruct"
+    ocp4_workload_litellm_virtual_keys_duration: "30d"
   ansible.builtin.include_role:
     name: rhpds.litellm_virtual_keys.ocp4_workload_litellm_virtual_keys
 ```
@@ -38,15 +42,17 @@ Manages LiteLLM virtual keys for AI model access in RHDP lab environments.
     name: rhpds.litellm_virtual_keys.ocp4_workload_litellm_virtual_keys
 ```
 
-## Subscription Packages
+## Available Models
 
-| Package | Models | Duration |
-|---------|--------|----------|
-| ai-beginner | Granite only | 7 days |
-| ai-developer | Granite + Mistral | 30 days |
-| ai-researcher | Granite + Mistral + Llama | 90 days |
-| lab-dev | Granite + Mistral | 14 days |
-| lab-prod | Granite + Mistral | 90 days |
+- `openai/granite-3-2-8b-instruct` (IBM Granite)
+- `openai/mistral-7b-instruct` (Mistral AI)
+
+## Duration Options
+
+- `3d` (3 days)
+- `7d` (7 days)
+- `10d` (10 days)
+- `30d` (30 days)
 
 ## Variables
 
@@ -54,12 +60,13 @@ Manages LiteLLM virtual keys for AI model access in RHDP lab environments.
 
 - `ACTION`: "provision" or "destroy"
 - `guid`: Lab environment GUID
-- `litellm_url`: LiteLLM API URL
-- `litellm_master_key`: LiteLLM master key
+- `litellm_url`: LiteLLM API URL (without trailing slash)
+- `litellm_master_key`: LiteLLM master key (must start with `sk-`)
 
 ### Optional
 
-- `ocp4_workload_litellm_virtual_keys_subscription_package`: Default "ai-developer"
+- `ocp4_workload_litellm_virtual_keys_models`: List of models (default: Granite + Mistral)
+- `ocp4_workload_litellm_virtual_keys_duration`: Key duration (default: "30d")
 - `ocp4_workload_litellm_virtual_keys_force_db_delete`: Enable direct database deletion (default: false)
 
 ## Output Facts
@@ -75,14 +82,17 @@ After provisioning, the following facts are set:
 ## Example
 
 ```yaml
-- name: Provision AI developer key
+- name: Provision LiteLLM virtual key
   hosts: localhost
   vars:
     ACTION: "provision"
     guid: "abc123"
     litellm_url: "https://litellm-rhpds.apps.cluster.com"
     litellm_master_key: "sk-xxxxx"
-    ocp4_workload_litellm_virtual_keys_subscription_package: "ai-developer"
+    ocp4_workload_litellm_virtual_keys_models:
+      - "openai/granite-3-2-8b-instruct"
+      - "openai/mistral-7b-instruct"
+    ocp4_workload_litellm_virtual_keys_duration: "10d"
   tasks:
     - include_role:
         name: rhpds.litellm_virtual_keys.ocp4_workload_litellm_virtual_keys

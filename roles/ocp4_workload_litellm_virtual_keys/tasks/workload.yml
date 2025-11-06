@@ -32,23 +32,13 @@
     _litellm_key_alias: "{{ ocp4_workload_litellm_virtual_keys_alias_format }}"
 
 # -----------------------------------------------------------------------------
-# Step 3: Determine Subscription Package Details
+# Step 3: Set Models and Duration
 # -----------------------------------------------------------------------------
-# If using a predefined package, extract models and duration
-- name: Determine subscription package details
-  when: ocp4_workload_litellm_virtual_keys_subscription_package != "custom"
+# Use the models and duration provided from AgnosticV
+- name: Set models and duration
   ansible.builtin.set_fact:
-    _litellm_models: "{{ ocp4_workload_litellm_virtual_keys_packages[ocp4_workload_litellm_virtual_keys_subscription_package].models }}"
-    _litellm_duration: "{{ ocp4_workload_litellm_virtual_keys_packages[ocp4_workload_litellm_virtual_keys_subscription_package].duration }}"
-    _litellm_package_description: "{{ ocp4_workload_litellm_virtual_keys_packages[ocp4_workload_litellm_virtual_keys_subscription_package].description }}"
-
-# If using custom model selection
-- name: Use custom model selection
-  when: ocp4_workload_litellm_virtual_keys_subscription_package == "custom"
-  ansible.builtin.set_fact:
-    _litellm_models: "{{ ocp4_workload_litellm_virtual_keys_custom_models }}"
-    _litellm_duration: "{{ ocp4_workload_litellm_virtual_keys_custom_duration }}"
-    _litellm_package_description: "Custom model selection"
+    _litellm_models: "{{ ocp4_workload_litellm_virtual_keys_models }}"
+    _litellm_duration: "{{ ocp4_workload_litellm_virtual_keys_duration }}"
 
 # -----------------------------------------------------------------------------
 # Step 4: Validate Models List
@@ -88,7 +78,8 @@
   ansible.builtin.set_fact:
     _litellm_metadata:
       guid: "{{ guid }}"
-      subscription_package: "{{ ocp4_workload_litellm_virtual_keys_subscription_package }}"
+      models: "{{ _litellm_models | join(',') }}"
+      duration: "{{ _litellm_duration }}"
       models_count: "{{ _litellm_models | length }}"
       created_by: "{{ ocp4_workload_litellm_virtual_keys_metadata.created_by }}"
       environment: "{{ ocp4_workload_litellm_virtual_keys_metadata.environment }}"
@@ -105,7 +96,6 @@
       - "========================================="
       - "GUID: {{ guid }}"
       - "Key Alias: {{ _litellm_key_alias }}"
-      - "Subscription: {{ ocp4_workload_litellm_virtual_keys_subscription_package }}"
       - "Models: {{ _litellm_models | join(', ') }}"
       - "Duration: {{ _litellm_duration }}"
       - "User ID: {{ _litellm_user_id }}"
@@ -301,4 +291,3 @@
       litellm_key_alias: "{{ litellm_key_alias }}"
       litellm_available_models: "{{ litellm_available_models }}"
       litellm_key_duration: "{{ litellm_key_duration }}"
-      litellm_subscription_package: "{{ ocp4_workload_litellm_virtual_keys_subscription_package }}"

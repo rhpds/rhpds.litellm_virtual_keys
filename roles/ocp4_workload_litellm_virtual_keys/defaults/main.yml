@@ -16,60 +16,17 @@ litellm_url: ""
 litellm_master_key: ""
 
 # -----------------------------------------------------------------------------
-# Subscription Package Selection
+# Model and Duration Selection
 # -----------------------------------------------------------------------------
-# Choose one of the predefined packages or use "custom"
-# Options: ai-beginner, ai-developer, ai-researcher, lab-dev, lab-prod, custom
-ocp4_workload_litellm_virtual_keys_subscription_package: "ai-developer"
+# List of AI models accessible with this key
+# User can select one or more models from AgnosticV dropdown
+ocp4_workload_litellm_virtual_keys_models:
+  - "openai/granite-3-2-8b-instruct"
+  - "openai/mistral-7b-instruct"
 
-# -----------------------------------------------------------------------------
-# Custom Model Selection (only used when package is "custom")
-# -----------------------------------------------------------------------------
-ocp4_workload_litellm_virtual_keys_custom_models: []
-ocp4_workload_litellm_virtual_keys_custom_duration: "30d"
-
-# -----------------------------------------------------------------------------
-# Subscription Package Definitions
-# -----------------------------------------------------------------------------
-# Each package defines:
-#   - models: List of AI models accessible with this key
-#   - duration: How long the key is valid (e.g., "7d", "30d", "90d")
-#   - description: Human-readable description
-# -----------------------------------------------------------------------------
-ocp4_workload_litellm_virtual_keys_packages:
-  ai-beginner:
-    models:
-      - "openai/granite-3-2-8b-instruct"
-    duration: "7d"
-    description: "Beginner package with Granite model for 7 days"
-
-  ai-developer:
-    models:
-      - "openai/granite-3-2-8b-instruct"
-      - "openai/mistral-7b-instruct"
-    duration: "30d"
-    description: "Developer package with Granite and Mistral for 30 days"
-
-  ai-researcher:
-    models:
-      - "openai/granite-3-2-8b-instruct"
-      - "openai/mistral-7b-instruct"
-    duration: "90d"
-    description: "Researcher package with Granite and Mistral for 90 days"
-
-  lab-dev:
-    models:
-      - "openai/granite-3-2-8b-instruct"
-      - "openai/mistral-7b-instruct"
-    duration: "14d"
-    description: "Development lab environment with Granite and Mistral for 14 days"
-
-  lab-prod:
-    models:
-      - "openai/granite-3-2-8b-instruct"
-      - "openai/mistral-7b-instruct"
-    duration: "90d"
-    description: "Production lab environment with Granite and Mistral for 90 days"
+# Key validity duration (selected from AgnosticV dropdown)
+# Format: "3d", "7d", "10d", "30d"
+ocp4_workload_litellm_virtual_keys_duration: "30d"
 
 # -----------------------------------------------------------------------------
 # Key Naming Convention
