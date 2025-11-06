@@ -179,6 +179,19 @@
         litellm_virtual_key: "{{ _litellm_api_response.json.key if _litellm_key_created else 'KEY_ALREADY_EXISTS_CANNOT_RETRIEVE' }}"
         litellm_key_alias: "{{ _litellm_key_alias }}"
 
+    # Validate that we got a key
+    - name: Validate key was retrieved
+      when: not _litellm_key_created and not _litellm_key_already_exists
+      ansible.builtin.fail:
+        msg: |
+          API call succeeded but key status is unclear.
+          API Status: {{ _litellm_api_response.status }}
+          Response: {{ _litellm_api_response.json | default('No JSON') }}
+
+          This is unexpected. Please check:
+          1. LiteLLM API logs
+          2. The response structure from /key/generate endpoint
+
     # Fail if key already exists (we cannot retrieve existing keys from LiteLLM)
     - name: Fail if key already exists
       when: _litellm_key_already_exists
@@ -192,6 +205,20 @@
           2. Use a different GUID to create a new key
 
           To delete: Run with ACTION=destroy and the same guid
+
+    # Validate we have an actual key value
+    - name: Ensure key value exists
+      when: _litellm_key_created
+      ansible.builtin.assert:
+        that:
+          - litellm_virtual_key is defined
+          - litellm_virtual_key | length > 0
+          - litellm_virtual_key starts with 'sk-'
+        fail_msg: |
+          Key was created but no valid key value was returned.
+          Got: {{ litellm_virtual_key | default('undefined') }}
+          Expected: sk-xxxxx format
+          Response: {{ _litellm_api_response.json | default('No JSON') }}
 
     # -----------------------------------------------------------------------------
     # Step 12: Display Success Messages
