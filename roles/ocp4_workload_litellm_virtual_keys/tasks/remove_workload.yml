@@ -39,6 +39,11 @@
     fail_msg: "ocp4_workload_litellm_virtual_keys_key_id required for by_key_id deletion method"
     quiet: true
 
+# Clean the URL (remove trailing slash if present)
+- name: Clean API endpoint URL
+  ansible.builtin.set_fact:
+    _litellm_api_endpoint: "{{ litellm_url | regex_replace('/$', '') }}"
+
 # -----------------------------------------------------------------------------
 # Step 2: Determine Key to Delete
 # -----------------------------------------------------------------------------
@@ -78,7 +83,7 @@
 # 3. Find the one matching our alias
 - name: List all virtual key token hashes
   ansible.builtin.uri:
-    url: "{{ litellm_url }}/key/list"
+    url: "{{ _litellm_api_endpoint }}/key/list"
     method: GET
     headers:
       Authorization: "Bearer {{ litellm_master_key }}"
@@ -108,7 +113,7 @@
   block:
     - name: Get detailed info for each key and find matching alias
       ansible.builtin.uri:
-        url: "{{ litellm_url }}/key/info?key={{ item }}"
+        url: "{{ _litellm_api_endpoint }}/key/info?key={{ item }}"
         method: GET
         headers:
           Authorization: "Bearer {{ litellm_master_key }}"
@@ -164,7 +169,7 @@
 
     - name: Call LiteLLM key deletion API with token hash
       ansible.builtin.uri:
-        url: "{{ litellm_url }}/key/delete"
+        url: "{{ _litellm_api_endpoint }}/key/delete"
         method: POST
         headers:
           Authorization: "Bearer {{ litellm_master_key }}"
@@ -190,7 +195,7 @@
 
     - name: Verify key was deleted
       ansible.builtin.uri:
-        url: "{{ litellm_url }}/key/info"
+        url: "{{ _litellm_api_endpoint }}/key/info"
         method: GET
         headers:
           Authorization: "Bearer {{ litellm_master_key }}"
@@ -244,7 +249,7 @@
 
         - name: Verify database deletion
           ansible.builtin.uri:
-            url: "{{ litellm_url }}/key/info"
+            url: "{{ _litellm_api_endpoint }}/key/info"
             method: GET
             headers:
               Authorization: "Bearer {{ litellm_master_key }}"
