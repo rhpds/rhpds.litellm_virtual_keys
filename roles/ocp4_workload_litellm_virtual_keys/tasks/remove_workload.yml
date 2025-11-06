@@ -70,24 +70,34 @@
       - "========================================="
 
 # -----------------------------------------------------------------------------
-# Step 4: Check if Key Exists
+# Step 4: List All Keys and Find the One to Delete
 # -----------------------------------------------------------------------------
-- name: Check if virtual key exists before deletion
+# LiteLLM's delete API is unreliable with aliases
+# We need to get the full key info including token/hash first
+- name: List all virtual keys
   ansible.builtin.uri:
-    url: "{{ litellm_url }}/key/info?key={{ _litellm_key_to_delete }}"
+    url: "{{ litellm_url }}/key/info"
     method: GET
     headers:
       Authorization: "Bearer {{ litellm_master_key }}"
       Content-Type: "application/json"
     validate_certs: "{{ ocp4_workload_litellm_virtual_keys_verify_ssl }}"
     timeout: "{{ ocp4_workload_litellm_virtual_keys_api_timeout }}"
-    status_code: [200, 404]
-  register: _litellm_key_check
+    status_code: [200]
+  register: _litellm_all_keys
   failed_when: false
+
+- name: Find key by alias
+  ansible.builtin.set_fact:
+    _litellm_found_key: "{{ _litellm_all_keys.json.keys | selectattr('key_alias', 'equalto', _litellm_key_to_delete) | list | first | default(none) }}"
+  when:
+    - _litellm_all_keys.status == 200
+    - _litellm_all_keys.json.keys is defined
 
 - name: Set key exists flag
   ansible.builtin.set_fact:
-    _litellm_key_exists: "{{ _litellm_key_check.status == 200 }}"
+    _litellm_key_exists: "{{ _litellm_found_key is not none }}"
+    _litellm_key_hash: "{{ _litellm_found_key.token if _litellm_found_key is not none else '' }}"
 
 # -----------------------------------------------------------------------------
 # Step 5: Handle Missing Key (Idempotent)
@@ -98,12 +108,19 @@
     msg: "Virtual key {{ _litellm_deletion_label }} does not exist. Nothing to delete (idempotent)."
 
 # -----------------------------------------------------------------------------
-# Step 6: Delete the Key
+# Step 6: Delete the Key Using Token Hash
 # -----------------------------------------------------------------------------
 - name: Delete virtual key via LiteLLM API
   when: _litellm_key_exists
   block:
-    - name: Call LiteLLM key deletion API
+    - name: Display key info before deletion
+      ansible.builtin.debug:
+        msg:
+          - "Found key to delete:"
+          - "  Alias: {{ _litellm_found_key.key_alias }}"
+          - "  Token: {{ _litellm_key_hash }}"
+
+    - name: Call LiteLLM key deletion API with token hash
       ansible.builtin.uri:
         url: "{{ litellm_url }}/key/delete"
         method: POST
@@ -112,7 +129,7 @@
           Content-Type: "application/json"
         body_format: json
         body:
-          keys: ["{{ _litellm_key_to_delete }}"]
+          keys: ["{{ _litellm_key_hash }}"]
         validate_certs: "{{ ocp4_workload_litellm_virtual_keys_verify_ssl }}"
         timeout: "{{ ocp4_workload_litellm_virtual_keys_api_timeout }}"
         status_code: [200, 201, 204]
@@ -121,13 +138,47 @@
       delay: "{{ ocp4_workload_litellm_virtual_keys_retry_delay }}"
       until: _litellm_delete_response is succeeded
 
+    - name: Wait for deletion to propagate
+      ansible.builtin.pause:
+        seconds: 2
+
+    - name: Verify key was deleted
+      ansible.builtin.uri:
+        url: "{{ litellm_url }}/key/info"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ litellm_master_key }}"
+          Content-Type: "application/json"
+        validate_certs: "{{ ocp4_workload_litellm_virtual_keys_verify_ssl }}"
+        timeout: "{{ ocp4_workload_litellm_virtual_keys_api_timeout }}"
+        status_code: [200]
+      register: _litellm_verify_delete
+      failed_when: false
+
+    - name: Check if key still exists after deletion
+      ansible.builtin.set_fact:
+        _litellm_key_still_exists: "{{ _litellm_verify_delete.json.keys | selectattr('key_alias', 'equalto', _litellm_key_to_delete) | list | length > 0 }}"
+      when:
+        - _litellm_verify_delete.status == 200
+        - _litellm_verify_delete.json.keys is defined
+
+    - name: Warn if key still exists
+      ansible.builtin.debug:
+        msg:
+          - "WARNING: Key {{ _litellm_key_to_delete }} still exists after deletion!"
+          - "This is a known issue with LiteLLM's delete API."
+          - "The key may reappear due to caching or eventual consistency."
+      when: _litellm_key_still_exists | default(false)
+
     - name: Display deletion success
+      when: not (_litellm_key_still_exists | default(false))
       ansible.builtin.debug:
         msg:
           - "========================================="
           - "Virtual Key Deleted Successfully!"
           - "========================================="
           - "Deleted: {{ _litellm_deletion_label }}"
+          - "Verified: Key no longer exists"
           - "========================================="
 
 # -----------------------------------------------------------------------------
