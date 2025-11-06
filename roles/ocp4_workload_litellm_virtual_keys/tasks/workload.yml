@@ -206,7 +206,7 @@
 # These messages are shown to users in emails and the RHDP UI
 - name: Print user info messages
   when: ocp4_workload_litellm_virtual_keys_enable_user_info_messages | bool
-  agnosticd.core.agnosticd_user_info:
+  rhpds.litellm_virtual_keys.agnosticd_user_info:
     msg: "{{ item }}"
   loop:
     - "LiteLLM API Endpoint: {{ litellm_api_endpoint }}/v1"
@@ -219,7 +219,7 @@
   when:
     - ocp4_workload_litellm_virtual_keys_enable_user_info_messages | bool
     - ocp4_workload_litellm_virtual_keys_user_info_messages | length > 0
-  agnosticd.core.agnosticd_user_info:
+  rhpds.litellm_virtual_keys.agnosticd_user_info:
     msg: "{{ item }}"
   loop: "{{ ocp4_workload_litellm_virtual_keys_user_info_messages }}"
 
@@ -229,7 +229,7 @@
 # This data is stored for programmatic access via APIs
 - name: Save user info data
   when: ocp4_workload_litellm_virtual_keys_enable_user_info_data | bool
-  agnosticd.core.agnosticd_user_info:
+  rhpds.litellm_virtual_keys.agnosticd_user_info:
     data:
       litellm_api_endpoint: "{{ litellm_api_endpoint }}"
       litellm_api_base_url: "{{ litellm_api_endpoint }}/v1"
