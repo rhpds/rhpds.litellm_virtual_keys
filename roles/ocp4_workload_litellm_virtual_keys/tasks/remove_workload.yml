@@ -72,11 +72,13 @@
 # -----------------------------------------------------------------------------
 # Step 4: List All Keys and Find the One to Delete
 # -----------------------------------------------------------------------------
-# LiteLLM's delete API is unreliable with aliases
-# We need to get the full key info including token/hash first
-- name: List all virtual keys
+# Strategy:
+# 1. Get list of all token hashes from /key/list
+# 2. For each token, get detailed info from /key/info?key={token}
+# 3. Find the one matching our alias
+- name: List all virtual key token hashes
   ansible.builtin.uri:
-    url: "{{ litellm_url }}/key/info"
+    url: "{{ litellm_url }}/key/list"
     method: GET
     headers:
       Authorization: "Bearer {{ litellm_master_key }}"
@@ -84,39 +86,46 @@
     validate_certs: "{{ ocp4_workload_litellm_virtual_keys_verify_ssl }}"
     timeout: "{{ ocp4_workload_litellm_virtual_keys_api_timeout }}"
     status_code: [200]
-  register: _litellm_all_keys
+  register: _litellm_key_list
   failed_when: false
 
-- name: Initialize found key variable
+- name: Initialize variables
   ansible.builtin.set_fact:
-    _litellm_found_key: null
+    _litellm_found_key_hash: ""
+    _litellm_key_exists: false
 
-- name: Find key by alias
+- name: Search for key by alias
   when:
-    - _litellm_all_keys.status == 200
-    - _litellm_all_keys.json.keys is defined
+    - _litellm_key_list.status == 200
+    - _litellm_key_list.json.keys is defined
+    - _litellm_key_list.json.keys | length > 0
   block:
-    - name: Search for matching key
+    - name: Get detailed info for each key and find matching alias
+      ansible.builtin.uri:
+        url: "{{ litellm_url }}/key/info?key={{ item }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ litellm_master_key }}"
+          Content-Type: "application/json"
+        validate_certs: "{{ ocp4_workload_litellm_virtual_keys_verify_ssl }}"
+        timeout: "{{ ocp4_workload_litellm_virtual_keys_api_timeout }}"
+        status_code: [200, 404]
+      register: _litellm_key_details
+      loop: "{{ _litellm_key_list.json.keys }}"
+      failed_when: false
+
+    - name: Find key with matching alias
       ansible.builtin.set_fact:
-        _litellm_matching_keys: "{{ _litellm_all_keys.json.keys | selectattr('key_alias', 'equalto', _litellm_key_to_delete) | list }}"
-
-    - name: Set found key if match exists
-      when: _litellm_matching_keys | length > 0
-      ansible.builtin.set_fact:
-        _litellm_found_key: "{{ _litellm_matching_keys[0] }}"
-
-    - name: Debug found key details
-      when: _litellm_matching_keys | length > 0
-      ansible.builtin.debug:
-        msg:
-          - "Found key details:"
-          - "{{ _litellm_found_key }}"
-
-- name: Set key exists flag and hash
-  ansible.builtin.set_fact:
-    _litellm_key_exists: "{{ _litellm_found_key is not none and _litellm_found_key != None }}"
-    _litellm_key_hash: "{{ _litellm_found_key.token if (_litellm_found_key is not none and _litellm_found_key != None) else '' }}"
-    _litellm_key_name: "{{ _litellm_found_key.key_name if (_litellm_found_key is not none and _litellm_found_key != None and _litellm_found_key.key_name is defined) else '' }}"
+        _litellm_found_key_hash: "{{ item.json.key }}"
+        _litellm_key_exists: true
+      when:
+        - item.status == 200
+        - item.json.info is defined
+        - item.json.info.key_alias is defined
+        - item.json.info.key_alias == _litellm_key_to_delete
+      loop: "{{ _litellm_key_details.results }}"
+      loop_control:
+        label: "{{ item.json.info.key_alias if (item.status == 200 and item.json.info is defined and item.json.info.key_alias is defined) else 'N/A' }}"
 
 - name: Debug key search results
   ansible.builtin.debug:
@@ -124,8 +133,7 @@
       - "Key search results:"
       - "  Looking for alias: {{ _litellm_key_to_delete }}"
       - "  Key found: {{ _litellm_key_exists }}"
-      - "  Token hash: {{ _litellm_key_hash if _litellm_key_hash else 'N/A' }}"
-      - "  Key name: {{ _litellm_key_name if _litellm_key_name else 'N/A' }}"
+      - "  Token hash: {{ _litellm_found_key_hash if _litellm_found_key_hash else 'N/A' }}"
 
 # -----------------------------------------------------------------------------
 # Step 5: Handle Missing Key (Idempotent)
@@ -145,8 +153,8 @@
       ansible.builtin.debug:
         msg:
           - "Found key to delete:"
-          - "  Alias: {{ _litellm_found_key.key_alias }}"
-          - "  Token: {{ _litellm_key_hash }}"
+          - "  Alias: {{ _litellm_key_to_delete }}"
+          - "  Token: {{ _litellm_found_key_hash }}"
 
     - name: Call LiteLLM key deletion API with token hash
       ansible.builtin.uri:
@@ -157,7 +165,7 @@
           Content-Type: "application/json"
         body_format: json
         body:
-          keys: ["{{ _litellm_key_hash }}"]
+          keys: ["{{ _litellm_found_key_hash }}"]
         validate_certs: "{{ ocp4_workload_litellm_virtual_keys_verify_ssl }}"
         timeout: "{{ ocp4_workload_litellm_virtual_keys_api_timeout }}"
         status_code: [200, 201, 204]
@@ -216,7 +224,7 @@
             pod: "{{ ocp4_workload_litellm_virtual_keys_postgres_pod }}"
             command: >-
               psql -U postgres -d {{ ocp4_workload_litellm_virtual_keys_postgres_db }} -c
-              "DELETE FROM \"LiteLLM_VerificationToken\" WHERE token = '{{ _litellm_key_hash }}';"
+              "DELETE FROM \"LiteLLM_VerificationToken\" WHERE token = '{{ _litellm_found_key_hash }}';"
           register: _litellm_db_delete
           failed_when: false
 
