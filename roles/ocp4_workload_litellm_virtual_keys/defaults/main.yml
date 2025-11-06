@@ -54,9 +54,8 @@ ocp4_workload_litellm_virtual_keys_packages:
     models:
       - "openai/granite-3-2-8b-instruct"
       - "openai/mistral-7b-instruct"
-      - "openai/llama-3-8b-instruct"
     duration: "90d"
-    description: "Researcher package with multiple models for 90 days"
+    description: "Researcher package with Granite and Mistral for 90 days"
 
   lab-dev:
     models:
