@@ -1,15 +1,12 @@
 ---
-# =============================================================================
-# LiteLLM Virtual Keys Workload - Main Entry Point
-# =============================================================================
 # Do not modify this file
-# This routes to workload.yml or remove_workload.yml based on ACTION variable
-# =============================================================================
 
-- name: Running workload provision tasks
+- name: Running Workload Tasks
+  include_tasks:
+    file: ./workload.yml
   when: ACTION == "create" or ACTION == "provision"
-  ansible.builtin.include_tasks: workload.yml
 
-- name: Running workload removal tasks
+- name: Running Workload removal Tasks
+  include_tasks:
+    file: ./remove_workload.yml
   when: ACTION == "destroy" or ACTION == "remove"
-  ansible.builtin.include_tasks: remove_workload.yml
