@@ -290,4 +290,5 @@
       litellm_virtual_key: "{{ litellm_virtual_key }}"
       litellm_key_alias: "{{ litellm_key_alias }}"
       litellm_available_models: "{{ litellm_available_models }}"
+      litellm_available_models_list: "{{ litellm_available_models | join(', ') }}"
       litellm_key_duration: "{{ litellm_key_duration }}"
