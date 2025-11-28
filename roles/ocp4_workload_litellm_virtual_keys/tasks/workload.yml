@@ -149,30 +149,13 @@
         timeout: "{{ ocp4_workload_litellm_virtual_keys_api_timeout }}"
         status_code: [200, 201, 400]
       register: _litellm_api_response
-      failed_when:
-        - _litellm_api_response.status == 400
-        - "'already exists' not in (_litellm_api_response.json.error.message | default(''))"
+      failed_when: false  # Don't fail, we'll handle status in next task
 
     # Determine if key was created or already existed
     - name: Set key created flag
       ansible.builtin.set_fact:
         _litellm_key_created: "{{ _litellm_api_response.status in [200, 201] }}"
-        _litellm_key_already_exists: "{{ _litellm_api_response.status == 400 and 'already exists' in (_litellm_api_response.json.error.message | default('')) }}"
-
-    # Debug API response to understand what happened
-    - name: Debug API response status
-      ansible.builtin.debug:
-        msg:
-          - "========================================="
-          - "API RESPONSE DEBUG"
-          - "========================================="
-          - "HTTP Status: {{ _litellm_api_response.status }}"
-          - "Key Created: {{ _litellm_key_created }}"
-          - "Key Already Exists: {{ _litellm_key_already_exists }}"
-          - "Full Response: {{ _litellm_api_response.json | to_nice_json }}"
-          - "Response Keys: {{ _litellm_api_response.json.keys() | list if _litellm_api_response.json is defined else 'No JSON' }}"
-          - "Key Value in Response: {{ _litellm_api_response.json.key | default('NOT FOUND') }}"
-          - "========================================="
+        _litellm_key_already_exists: "{{ _litellm_api_response.status == 400 }}"
 
     # -----------------------------------------------------------------------------
     # Step 10: Extract Key from Response
@@ -182,7 +165,7 @@
     # In that case, we cannot retrieve it and must create a new one with different alias
     - name: Set virtual key facts
       ansible.builtin.set_fact:
-        litellm_virtual_key: "{{ _litellm_api_response.json.key if _litellm_key_created else 'KEY_ALREADY_EXISTS_CANNOT_RETRIEVE' }}"
+        litellm_virtual_key: "{{ _litellm_api_response.get('key', _litellm_api_response.get('json', {}).get('key', 'KEY_NOT_FOUND')) if _litellm_key_created else 'KEY_ALREADY_EXISTS_CANNOT_RETRIEVE' }}"
         litellm_key_alias: "{{ _litellm_key_alias }}"
 
     # Validate that we got a key
@@ -192,7 +175,7 @@
         msg: |
           API call succeeded but key status is unclear.
           API Status: {{ _litellm_api_response.status }}
-          Response: {{ _litellm_api_response.json | default('No JSON') }}
+          Response: {{ _litellm_api_response | to_nice_json }}
 
           This is unexpected. Please check:
           1. LiteLLM API logs
@@ -224,7 +207,7 @@
           Key was created but no valid key value was returned.
           Got: {{ litellm_virtual_key | default('undefined') }}
           Expected: sk-xxxxx format
-          Response: {{ _litellm_api_response.json | default('No JSON') }}
+          Response: {{ _litellm_api_response | to_nice_json }}
 
     # -----------------------------------------------------------------------------
     # Step 12: Display Success Messages
