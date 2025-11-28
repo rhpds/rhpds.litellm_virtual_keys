@@ -1,0 +1,95 @@
+---
+# =============================================================================
+# Extend LiteLLM Virtual Key - Lifecycle Hook for CI Extension
+# =============================================================================
+# This playbook extends the expiration of a LiteLLM virtual key when the
+# user extends their RHDP Catalog Item from the UI
+#
+# Triggered by: AgnosticV lifecycle_hooks.extend
+# Requirements: agnosticd.core collection for agnosticd_user_data lookup
+# =============================================================================
+
+- name: Extend LiteLLM Virtual Key Expiration
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    # -----------------------------------------------------------------------------
+    # Step 1: Retrieve Saved Key Information
+    # -----------------------------------------------------------------------------
+    - name: Get key info from user data
+      ansible.builtin.set_fact:
+        litellm_key_id: "{{ lookup('agnosticd.core.agnosticd_user_data', 'litellm_key_id') }}"
+        litellm_key_alias: "{{ lookup('agnosticd.core.agnosticd_user_data', 'litellm_key_alias') }}"
+        litellm_api_endpoint: "{{ lookup('agnosticd.core.agnosticd_user_data', 'litellm_api_endpoint') }}"
+        litellm_master_key: "{{ lookup('agnosticd.core.agnosticd_user_data', 'litellm_master_key') }}"
+
+    # -----------------------------------------------------------------------------
+    # Step 2: Calculate New Expiration Duration
+    # -----------------------------------------------------------------------------
+    # Use CI runtime from agnosticd_user_info (in hours)
+    - name: Set new expiration duration
+      ansible.builtin.set_fact:
+        new_duration: "{{ agnosticd_user_info.runtime | default(168) }}h"
+
+    # -----------------------------------------------------------------------------
+    # Step 3: Display Extension Info
+    # -----------------------------------------------------------------------------
+    - name: Display key extension details
+      ansible.builtin.debug:
+        msg:
+          - "========================================="
+          - "Extending LiteLLM Virtual Key"
+          - "========================================="
+          - "Key ID: {{ litellm_key_id }}"
+          - "Key Alias: {{ litellm_key_alias }}"
+          - "New Duration: {{ new_duration }}"
+          - "API Endpoint: {{ litellm_api_endpoint }}"
+          - "========================================="
+
+    # -----------------------------------------------------------------------------
+    # Step 4: Extend Key via LiteLLM API
+    # -----------------------------------------------------------------------------
+    - name: Extend virtual key expiration
+      ansible.builtin.uri:
+        url: "{{ litellm_api_endpoint }}/key/update"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ litellm_master_key }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          key: "{{ litellm_key_id }}"
+          duration: "{{ new_duration }}"
+        validate_certs: true
+        timeout: 30
+        status_code: [200, 201]
+      register: _extend_response
+
+    # -----------------------------------------------------------------------------
+    # Step 5: Display Success Message
+    # -----------------------------------------------------------------------------
+    - name: Display extension success
+      ansible.builtin.debug:
+        msg:
+          - "========================================="
+          - "Virtual Key Extended Successfully!"
+          - "========================================="
+          - "Key Alias: {{ litellm_key_alias }}"
+          - "New Duration: {{ new_duration }}"
+          - "========================================="
+
+    # -----------------------------------------------------------------------------
+    # Step 6: Update User Info Data
+    # -----------------------------------------------------------------------------
+    # Update the stored duration value
+    - name: Update key duration in user data
+      agnosticd.core.agnosticd_user_info:
+        data:
+          litellm_key_duration: "{{ new_duration }}"
+
+    # -----------------------------------------------------------------------------
+    # Step 7: Send User Info Message
+    # -----------------------------------------------------------------------------
+    - name: Notify user of key extension
+      agnosticd.core.agnosticd_user_info:
+        msg: "LiteLLM Virtual Key extended to {{ new_duration }}"

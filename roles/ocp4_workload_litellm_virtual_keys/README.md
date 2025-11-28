@@ -9,6 +9,7 @@ Manages LiteLLM virtual keys for AI model access in RHDP lab environments.
 - **GUID-based naming**: `virtkey-{GUID}` for easy tracking
 - **Idempotent**: Safe to run multiple times
 - **AgnosticD integration**: Sends user.info messages and data
+- **CI Lifecycle Integration**: Keys auto-expire with catalog items and auto-extend when users extend from UI
 
 ## Usage
 
@@ -99,6 +100,57 @@ After provisioning, the following facts are set:
 
     - debug:
         msg: "Virtual Key: {{ litellm_virtual_key }}"
+```
+
+## CI Lifecycle Integration
+
+Virtual keys automatically sync with RHDP Catalog Item lifecycle:
+
+### Auto-Expiration with CI Runtime
+
+When `agnosticd_user_info.runtime` is available, keys automatically expire when the catalog item expires:
+
+```yaml
+# Catalog item runtime: 7 days (168 hours)
+# Key duration: Automatically set to 168h (matches CI)
+```
+
+No hardcoded durations needed! Keys follow the catalog item lifecycle.
+
+### Auto-Extension on User Extension
+
+Configure a lifecycle hook in AgnosticV to extend keys when users click "Extend" in the UI:
+
+**AgnosticV Configuration (`common.yaml`):**
+
+```yaml
+lifecycle_hooks:
+  extend:
+    - name: Extend LiteLLM Virtual Key
+      playbook: extend_key.yml
+```
+
+**How it works:**
+
+1. User clicks "Extend" in RHDP UI → CI runtime updated to 14 days
+2. AgnosticV triggers `extend_key.yml` playbook
+3. Playbook reads saved key ID from user_data
+4. Calls LiteLLM API to extend key expiration to match new CI runtime
+5. Key now expires with the extended CI
+
+**Benefits:**
+
+✅ Keys never expire before CI \
+✅ Keys auto-cleanup when CI is destroyed \
+✅ No manual key management needed \
+✅ Works with any CI runtime (7d, 14d, 30d, etc.)
+
+### Fallback Behavior
+
+If `agnosticd_user_info.runtime` is not available (standalone use), falls back to configured duration:
+
+```yaml
+ocp4_workload_litellm_virtual_keys_duration: "30d"  # Used when no CI runtime
 ```
 
 ## Troubleshooting

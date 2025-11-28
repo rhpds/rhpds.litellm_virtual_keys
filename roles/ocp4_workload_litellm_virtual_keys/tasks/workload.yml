@@ -35,10 +35,12 @@
 # Step 3: Set Models and Duration
 # -----------------------------------------------------------------------------
 # Use the models and duration provided from AgnosticV
+# If agnosticd_user_info.runtime is available, use it (CI lifecycle integration)
+# Otherwise fall back to configured duration
 - name: Set models and duration
   ansible.builtin.set_fact:
     _litellm_models: "{{ ocp4_workload_litellm_virtual_keys_models }}"
-    _litellm_duration: "{{ ocp4_workload_litellm_virtual_keys_duration }}"
+    _litellm_duration: "{{ (agnosticd_user_info.runtime | default(ocp4_workload_litellm_virtual_keys_duration | regex_replace('d$', '') | int * 24)) | string + 'h' if agnosticd_user_info.runtime is defined else ocp4_workload_litellm_virtual_keys_duration }}"
 
 # -----------------------------------------------------------------------------
 # Step 4: Validate Models List
@@ -167,6 +169,7 @@
       ansible.builtin.set_fact:
         litellm_virtual_key: "{{ _litellm_api_response.get('key', _litellm_api_response.get('json', {}).get('key', 'KEY_NOT_FOUND')) if _litellm_key_created else 'KEY_ALREADY_EXISTS_CANNOT_RETRIEVE' }}"
         litellm_key_alias: "{{ _litellm_key_alias }}"
+        litellm_key_id: "{{ _litellm_api_response.get('key_id', _litellm_api_response.get('json', {}).get('key_id', _litellm_api_response.get('json', {}).get('token', ''))) }}"
 
     # Validate that we got a key
     - name: Validate key was retrieved
@@ -264,6 +267,7 @@
 # Step 14: Save User Info Data (AgnosticD Integration)
 # -----------------------------------------------------------------------------
 # This data is stored for programmatic access via APIs
+# Includes key_id and master_key for lifecycle extension support
 - name: Save user info data
   when: ocp4_workload_litellm_virtual_keys_enable_user_info_data | bool
   rhpds.litellm_virtual_keys.agnosticd_user_info:
@@ -272,6 +276,8 @@
       litellm_api_base_url: "{{ litellm_api_endpoint }}/v1"
       litellm_virtual_key: "{{ litellm_virtual_key }}"
       litellm_key_alias: "{{ litellm_key_alias }}"
+      litellm_key_id: "{{ litellm_key_id }}"
+      litellm_master_key: "{{ litellm_master_key }}"
       litellm_available_models: "{{ litellm_available_models }}"
       litellm_available_models_list: "{{ litellm_available_models | join(', ') }}"
       litellm_key_duration: "{{ litellm_key_duration }}"

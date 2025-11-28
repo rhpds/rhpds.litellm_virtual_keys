@@ -26,6 +26,8 @@ ocp4_workload_litellm_virtual_keys_models:
 
 # Key validity duration (selected from AgnosticV dropdown)
 # Format: "3d", "7d", "10d", "30d"
+# NOTE: If agnosticd_user_info.runtime is available, it will override this value
+# This enables automatic CI lifecycle integration (keys expire with catalog items)
 ocp4_workload_litellm_virtual_keys_duration: "30d"
 
 # -----------------------------------------------------------------------------
