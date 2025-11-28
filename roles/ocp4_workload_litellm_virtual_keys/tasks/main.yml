@@ -1,6 +1,11 @@
 ---
 # Do not modify this file
 
+- name: Set ACTION from agnosticd_action if not defined
+  ansible.builtin.set_fact:
+    ACTION: "{{ agnosticd_action | default(ACTION | default('provision')) }}"
+  when: ACTION is not defined or agnosticd_action is defined
+
 - name: Running Workload Tasks
   include_tasks:
     file: ./workload.yml
