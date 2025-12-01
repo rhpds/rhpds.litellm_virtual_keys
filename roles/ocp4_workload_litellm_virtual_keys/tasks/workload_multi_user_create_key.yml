@@ -90,10 +90,32 @@
     _litellm_user_ids: "{{ _litellm_user_ids + [_current_user_email] }}"
 
 # -----------------------------------------------------------------------------
-# Step 6: Build Per-User Data Dictionary Entry
+# Step 6: Send User-Scoped Data (Showroom Auto-Rendering)
+# -----------------------------------------------------------------------------
+# Pattern from litemaas: Use `user:` parameter to scope variables per-user
+# When user1 logs into Showroom, {litellm_virtual_key} shows user1's key
+# When user2 logs into Showroom, {litellm_virtual_key} shows user2's key
+- name: Send user-scoped info data for {{ _current_user_name }}
+  when: _current_api_response.status in [200, 201]
+  rhpds.litellm_virtual_keys.agnosticd_user_info:
+    data:
+      litellm_api_endpoint: "{{ litellm_api_endpoint }}"
+      litellm_api_base_url: "{{ litellm_api_endpoint }}/v1"
+      litellm_virtual_key: "{{ _current_virtual_key }}"
+      litellm_key_alias: "{{ _current_key_alias }}"
+      litellm_key_id: "{{ _current_key_id }}"
+      litellm_user_email: "{{ _current_user_email }}"
+      litellm_available_models: "{{ litellm_available_models }}"
+      litellm_available_models_list: "{{ litellm_available_models | join(', ') }}"
+      litellm_key_duration: "{{ litellm_key_duration }}"
+    user: "{{ _current_user_name }}"
+
+# -----------------------------------------------------------------------------
+# Step 7: Build Per-User Data Dictionary Entry (Global Visibility)
 # -----------------------------------------------------------------------------
 # Use tilde (~) operator for dynamic key construction
 # Creates: litellm_user1_virtual_key, litellm_user2_virtual_key, etc.
+# These are visible to ALL users (for programmatic access or admin views)
 - name: Add per-user data entries
   when: _current_api_response.status in [200, 201]
   ansible.builtin.set_fact:
@@ -117,7 +139,7 @@
     ] }}"
 
 # -----------------------------------------------------------------------------
-# Step 7: Display Success
+# Step 8: Display Success
 # -----------------------------------------------------------------------------
 - name: Display key creation success for {{ _current_user_name }}
   when: _current_api_response.status in [200, 201]
