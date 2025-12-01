@@ -1,0 +1,67 @@
+---
+# =============================================================================
+# LiteLLM Virtual Keys Workload - Multi-User Removal Tasks
+# =============================================================================
+# Deletes all virtual keys for all users
+# Key naming: virtkey-{GUID}-user1, virtkey-{GUID}-user2, etc.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Step 1: Validate Configuration
+# -----------------------------------------------------------------------------
+- name: Validate multi-user removal configuration
+  ansible.builtin.assert:
+    that:
+      - ocp4_workload_litellm_virtual_keys_user_count is defined
+      - ocp4_workload_litellm_virtual_keys_user_count | int > 0
+    fail_msg: "Multi-user mode enabled but num_users not specified"
+    quiet: false
+
+- name: Display multi-user removal details
+  ansible.builtin.debug:
+    msg:
+      - "========================================="
+      - "Deleting Multi-User Virtual Keys"
+      - "========================================="
+      - "Number of users: {{ ocp4_workload_litellm_virtual_keys_user_count }}"
+      - "User base: {{ ocp4_workload_litellm_virtual_keys_user_base }}"
+      - "Key pattern: virtkey-{{ guid }}-{{ ocp4_workload_litellm_virtual_keys_user_base }}N"
+      - "========================================="
+
+# -----------------------------------------------------------------------------
+# Step 2: Set API Endpoint
+# -----------------------------------------------------------------------------
+- name: Set API endpoint
+  ansible.builtin.set_fact:
+    _litellm_api_endpoint: "{{ litellm_url | regex_replace('/$', '') }}"
+
+# Initialize counters
+- name: Initialize deletion counters
+  ansible.builtin.set_fact:
+    _litellm_deleted_count: 0
+    _litellm_missing_count: 0
+
+# -----------------------------------------------------------------------------
+# Step 3: Delete Keys for Each User
+# -----------------------------------------------------------------------------
+- name: Delete virtual key for each user
+  include_tasks:
+    file: ./remove_workload_multi_user_delete_key.yml
+  loop: "{{ range(1, ocp4_workload_litellm_virtual_keys_user_count | int + 1) | list }}"
+  loop_control:
+    loop_var: user_number
+    label: "{{ ocp4_workload_litellm_virtual_keys_user_base }}{{ user_number }}"
+
+# -----------------------------------------------------------------------------
+# Step 4: Display Summary
+# -----------------------------------------------------------------------------
+- name: Display deletion summary
+  ansible.builtin.debug:
+    msg:
+      - "========================================="
+      - "Multi-User Deletion Complete"
+      - "========================================="
+      - "Keys deleted: {{ _litellm_deleted_count }}"
+      - "Keys already missing: {{ _litellm_missing_count }}"
+      - "Total users: {{ ocp4_workload_litellm_virtual_keys_user_count }}"
+      - "========================================="

@@ -1,0 +1,114 @@
+---
+# =============================================================================
+# Delete Virtual Key for Single User (Multi-User Loop Body)
+# =============================================================================
+# Called once per user from remove_workload_multi_user.yml
+# Variable available: user_number (1, 2, 3, etc.)
+# =============================================================================
+
+# Set key alias for this user
+- name: Set key alias for user{{ user_number }}
+  ansible.builtin.set_fact:
+    _current_key_alias: "virtkey-{{ guid }}-{{ ocp4_workload_litellm_virtual_keys_user_base }}{{ user_number }}"
+
+# List all keys to find this one
+- name: List all virtual key token hashes
+  ansible.builtin.uri:
+    url: "{{ _litellm_api_endpoint }}/key/list"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ litellm_master_key }}"
+      Content-Type: "application/json"
+    validate_certs: "{{ ocp4_workload_litellm_virtual_keys_verify_ssl }}"
+    timeout: "{{ ocp4_workload_litellm_virtual_keys_api_timeout }}"
+    status_code: [200]
+  register: _current_key_list
+  failed_when: false
+
+# Initialize variables for this user
+- name: Initialize variables for user{{ user_number }}
+  ansible.builtin.set_fact:
+    _current_found_key_hash: ""
+    _current_key_exists: false
+
+# Extract keys array
+- name: Extract keys list for user{{ user_number }}
+  when:
+    - _current_key_list.status == 200
+    - _current_key_list.json.keys is defined
+  ansible.builtin.set_fact:
+    _current_keys_array: "{{ _current_key_list.json['keys'] }}"
+
+# Search for this user's key
+- name: Search for key {{ _current_key_alias }}
+  when:
+    - _current_keys_array is defined
+    - _current_keys_array | length > 0
+  block:
+    - name: Get detailed info for each key
+      ansible.builtin.uri:
+        url: "{{ _litellm_api_endpoint }}/key/info?key={{ item }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ litellm_master_key }}"
+          Content-Type: "application/json"
+        validate_certs: "{{ ocp4_workload_litellm_virtual_keys_verify_ssl }}"
+        timeout: "{{ ocp4_workload_litellm_virtual_keys_api_timeout }}"
+        status_code: [200, 404]
+      register: _current_key_details
+      loop: "{{ _current_keys_array }}"
+      failed_when: false
+
+    - name: Find key with alias {{ _current_key_alias }}
+      ansible.builtin.set_fact:
+        _current_found_key_hash: "{{ item.json.key }}"
+        _current_key_exists: true
+      when:
+        - item.status == 200
+        - item.json.info is defined
+        - item.json.info.key_alias is defined
+        - item.json.info.key_alias == _current_key_alias
+      loop: "{{ _current_key_details.results }}"
+      loop_control:
+        label: "{{ item.json.info.key_alias if (item.status == 200 and item.json.info is defined and item.json.info.key_alias is defined) else 'N/A' }}"
+
+# Delete the key if found
+- name: Delete key {{ _current_key_alias }}
+  when: _current_key_exists
+  block:
+    - name: Call deletion API for {{ _current_key_alias }}
+      ansible.builtin.uri:
+        url: "{{ _litellm_api_endpoint }}/key/delete"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ litellm_master_key }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          keys: ["{{ _current_found_key_hash }}"]
+        validate_certs: "{{ ocp4_workload_litellm_virtual_keys_verify_ssl }}"
+        timeout: "{{ ocp4_workload_litellm_virtual_keys_api_timeout }}"
+        status_code: [200, 201, 204]
+      register: _current_delete_response
+      retries: "{{ ocp4_workload_litellm_virtual_keys_retry_count }}"
+      delay: "{{ ocp4_workload_litellm_virtual_keys_retry_delay }}"
+      until: _current_delete_response is succeeded
+
+    - name: Increment deleted counter
+      ansible.builtin.set_fact:
+        _litellm_deleted_count: "{{ _litellm_deleted_count | int + 1 }}"
+
+    - name: Display deletion success for {{ _current_key_alias }}
+      ansible.builtin.debug:
+        msg: "✓ Deleted key {{ _current_key_alias }}"
+
+# Handle missing key (idempotent)
+- name: Increment missing counter
+  when: not _current_key_exists
+  ansible.builtin.set_fact:
+    _litellm_missing_count: "{{ _litellm_missing_count | int + 1 }}"
+
+- name: Display key not found for {{ _current_key_alias }}
+  when: not _current_key_exists
+  ansible.builtin.debug:
+    msg: "⊘ Key {{ _current_key_alias }} already deleted (idempotent)"

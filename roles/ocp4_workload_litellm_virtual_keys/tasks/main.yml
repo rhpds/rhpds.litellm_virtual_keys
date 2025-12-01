@@ -7,11 +7,27 @@
   when: ACTION is not defined or agnosticd_action is defined
 
 - name: Running Workload Tasks
-  include_tasks:
-    file: ./workload.yml
   when: ACTION == "create" or ACTION == "provision"
+  block:
+    - name: Run single-user workload
+      when: not (ocp4_workload_litellm_virtual_keys_multi_user | bool)
+      include_tasks:
+        file: ./workload.yml
+
+    - name: Run multi-user workload
+      when: ocp4_workload_litellm_virtual_keys_multi_user | bool
+      include_tasks:
+        file: ./workload_multi_user.yml
 
 - name: Running Workload removal Tasks
-  include_tasks:
-    file: ./remove_workload.yml
   when: ACTION == "destroy" or ACTION == "remove"
+  block:
+    - name: Run single-user removal
+      when: not (ocp4_workload_litellm_virtual_keys_multi_user | bool)
+      include_tasks:
+        file: ./remove_workload.yml
+
+    - name: Run multi-user removal
+      when: ocp4_workload_litellm_virtual_keys_multi_user | bool
+      include_tasks:
+        file: ./remove_workload_multi_user.yml

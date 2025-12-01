@@ -1,0 +1,128 @@
+---
+# =============================================================================
+# Create Virtual Key for Single User (Multi-User Loop Body)
+# =============================================================================
+# Called once per user from workload_multi_user.yml
+# Variable available: user_number (1, 2, 3, etc.)
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Step 1: Build User-Specific Variables
+# -----------------------------------------------------------------------------
+- name: Set user-specific variables
+  ansible.builtin.set_fact:
+    _current_user_name: "{{ ocp4_workload_litellm_virtual_keys_user_base }}{{ user_number }}"
+    _current_key_alias: "virtkey-{{ guid }}-{{ ocp4_workload_litellm_virtual_keys_user_base }}{{ user_number }}"
+    _current_user_email: "{{ ocp4_workload_litellm_virtual_keys_user_base }}{{ user_number }}@{{ ocp4_workload_litellm_virtual_keys_user_email_domain }}"
+
+# -----------------------------------------------------------------------------
+# Step 2: Build Metadata for This User
+# -----------------------------------------------------------------------------
+- name: Build metadata for user{{ user_number }}
+  ansible.builtin.set_fact:
+    _current_metadata:
+      guid: "{{ guid }}"
+      user: "{{ _current_user_name }}"
+      user_number: "{{ user_number }}"
+      models: "{{ _litellm_models | join(',') }}"
+      duration: "{{ _litellm_duration }}"
+      models_count: "{{ _litellm_models | length }}"
+      created_by: "{{ ocp4_workload_litellm_virtual_keys_metadata.created_by }}"
+      environment: "{{ ocp4_workload_litellm_virtual_keys_metadata.environment }}"
+      catalog_item: "{{ catalog_item | default('unknown') }}"
+
+# -----------------------------------------------------------------------------
+# Step 3: Call LiteLLM API to Create Key
+# -----------------------------------------------------------------------------
+- name: Create virtual key for {{ _current_user_name }}
+  ansible.builtin.uri:
+    url: "{{ litellm_api_endpoint }}/key/generate"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ litellm_master_key }}"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      models: "{{ _litellm_models }}"
+      duration: "{{ _litellm_duration }}"
+      user_id: "{{ _current_user_email }}"
+      key_alias: "{{ _current_key_alias }}"
+      metadata: "{{ _current_metadata }}"
+    validate_certs: "{{ ocp4_workload_litellm_virtual_keys_verify_ssl }}"
+    timeout: "{{ ocp4_workload_litellm_virtual_keys_api_timeout }}"
+    status_code: [200, 201, 400]
+  register: _current_api_response
+  failed_when: false
+
+# -----------------------------------------------------------------------------
+# Step 4: Extract Key from Response
+# -----------------------------------------------------------------------------
+- name: Extract virtual key for {{ _current_user_name }}
+  ansible.builtin.set_fact:
+    _current_virtual_key: "{{ _current_api_response.get('key', _current_api_response.get('json', {}).get('key', '')) }}"
+    _current_key_id: "{{ _current_api_response.get('key_id', _current_api_response.get('json', {}).get('key_id', _current_api_response.get('json', {}).get('token', ''))) }}"
+
+# Validate key was created
+- name: Validate key for {{ _current_user_name }}
+  when: _current_api_response.status in [200, 201]
+  ansible.builtin.assert:
+    that:
+      - _current_virtual_key is defined
+      - _current_virtual_key | length > 0
+      - _current_virtual_key is match('^sk-')
+    fail_msg: "Key creation failed for {{ _current_user_name }}"
+
+# Handle key already exists (should not happen with guid-based naming)
+- name: Warn if key already exists for {{ _current_user_name }}
+  when: _current_api_response.status == 400
+  ansible.builtin.debug:
+    msg: "WARNING: Key {{ _current_key_alias }} already exists. Skipping."
+
+# -----------------------------------------------------------------------------
+# Step 5: Store Results in Arrays
+# -----------------------------------------------------------------------------
+- name: Append key to results arrays
+  when: _current_api_response.status in [200, 201]
+  ansible.builtin.set_fact:
+    _litellm_virtual_keys: "{{ _litellm_virtual_keys + [_current_virtual_key] }}"
+    _litellm_key_aliases: "{{ _litellm_key_aliases + [_current_key_alias] }}"
+    _litellm_key_ids: "{{ _litellm_key_ids + [_current_key_id] }}"
+    _litellm_user_ids: "{{ _litellm_user_ids + [_current_user_email] }}"
+
+# -----------------------------------------------------------------------------
+# Step 6: Build Per-User Data Dictionary Entry
+# -----------------------------------------------------------------------------
+# Use tilde (~) operator for dynamic key construction
+# Creates: litellm_user1_virtual_key, litellm_user2_virtual_key, etc.
+- name: Add per-user data entries
+  when: _current_api_response.status in [200, 201]
+  ansible.builtin.set_fact:
+    _litellm_per_user_data_list: "{{ _litellm_per_user_data_list | default([]) + [
+      {
+        'key': 'litellm_' ~ _current_user_name ~ '_virtual_key',
+        'value': _current_virtual_key
+      },
+      {
+        'key': 'litellm_' ~ _current_user_name ~ '_key_alias',
+        'value': _current_key_alias
+      },
+      {
+        'key': 'litellm_' ~ _current_user_name ~ '_key_id',
+        'value': _current_key_id
+      },
+      {
+        'key': 'litellm_' ~ _current_user_name ~ '_user_email',
+        'value': _current_user_email
+      }
+    ] }}"
+
+# -----------------------------------------------------------------------------
+# Step 7: Display Success
+# -----------------------------------------------------------------------------
+- name: Display key creation success for {{ _current_user_name }}
+  when: _current_api_response.status in [200, 201]
+  ansible.builtin.debug:
+    msg:
+      - "✓ Created key for {{ _current_user_name }}"
+      - "  Alias: {{ _current_key_alias }}"
+      - "  Email: {{ _current_user_email }}"

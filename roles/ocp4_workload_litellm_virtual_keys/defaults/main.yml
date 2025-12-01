@@ -105,3 +105,22 @@ ocp4_workload_litellm_virtual_keys_postgres_db: "litellm"
 
 # Namespace where LiteLLM and Postgres are deployed
 ocp4_workload_litellm_virtual_keys_namespace: "rhpds"
+
+# -----------------------------------------------------------------------------
+# Multi-User Support
+# -----------------------------------------------------------------------------
+# Enable multi-user mode to create one virtual key per user
+# When enabled, creates keys for each user (user1, user2, user3, etc.)
+ocp4_workload_litellm_virtual_keys_multi_user: false
+
+# Auto-detect user count from common variable (set at catalog level)
+# Falls back to num_users catalog parameter, then defaults to 1
+ocp4_workload_litellm_virtual_keys_user_count: "{{ ocp4_workload_user_count | default(num_users | default(1)) | int }}"
+
+# Auto-detect user base from common variable (htpasswd/RHSSO/RHBK use this)
+# Results in: user1, user2, user3, etc.
+ocp4_workload_litellm_virtual_keys_user_base: "{{ ocp4_workload_user_base | default('user') }}"
+
+# Email domain for multi-user keys
+# Results in: user1@lab.opentlc.com, user2@lab.opentlc.com, etc.
+ocp4_workload_litellm_virtual_keys_user_email_domain: "lab.opentlc.com"
