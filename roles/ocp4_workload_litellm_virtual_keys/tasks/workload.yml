@@ -267,7 +267,8 @@
 # Step 14: Save User Info Data (AgnosticD Integration)
 # -----------------------------------------------------------------------------
 # This data is stored for programmatic access via APIs
-# Includes key_id and master_key for lifecycle extension support
+# Includes key_id for lifecycle extension support
+# NOTE: master_key is NOT exposed to users for security reasons
 - name: Save user info data
   when: ocp4_workload_litellm_virtual_keys_enable_user_info_data | bool
   rhpds.litellm_virtual_keys.agnosticd_user_info:
@@ -277,7 +278,6 @@
       litellm_virtual_key: "{{ litellm_virtual_key }}"
       litellm_key_alias: "{{ litellm_key_alias }}"
       litellm_key_id: "{{ litellm_key_id }}"
-      litellm_master_key: "{{ litellm_master_key }}"
       litellm_available_models: "{{ litellm_available_models }}"
       litellm_available_models_list: "{{ litellm_available_models | join(', ') }}"
       litellm_key_duration: "{{ litellm_key_duration }}"

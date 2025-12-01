@@ -113,6 +113,5 @@
       'litellm_user_ids': _litellm_user_ids,
       'litellm_virtual_key': _litellm_virtual_keys[0] if _litellm_virtual_keys | length > 0 else '',
       'litellm_key_alias': _litellm_key_aliases[0] if _litellm_key_aliases | length > 0 else '',
-      'litellm_key_id': _litellm_key_ids[0] if _litellm_key_ids | length > 0 else '',
-      'litellm_master_key': litellm_master_key
+      'litellm_key_id': _litellm_key_ids[0] if _litellm_key_ids | length > 0 else ''
     }) }}"
