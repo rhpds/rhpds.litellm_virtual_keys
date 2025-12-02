@@ -110,9 +110,11 @@ ocp4_workload_litellm_virtual_keys_namespace: "rhpds"
 # Multi-User Support
 # -----------------------------------------------------------------------------
 # Enable multi-user mode to create one virtual key per user
-# Auto-detects from common ocp4_workload_multi_user variable (used by RHBK/htpasswd)
+# Auto-detects from:
+#   1. ocp4_workload_multi_user (set by RHBK/htpasswd workloads)
+#   2. num_users > 1 (catalog parameter)
 # Can be explicitly set to true/false to override auto-detection
-ocp4_workload_litellm_virtual_keys_multi_user: "{{ ocp4_workload_multi_user | default(false) | bool }}"
+ocp4_workload_litellm_virtual_keys_multi_user: "{{ ocp4_workload_multi_user | default((num_users | default(1) | int) > 1) | bool }}"
 
 # Auto-detect user count from common variable (set at catalog level)
 # Falls back to num_users catalog parameter, then defaults to 1
