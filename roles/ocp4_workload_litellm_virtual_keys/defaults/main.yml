@@ -40,16 +40,23 @@ ocp4_workload_litellm_virtual_keys_alias_format: "virtkey-{{ guid }}"
 # -----------------------------------------------------------------------------
 # User Identification
 # -----------------------------------------------------------------------------
-# Uses email if provided, otherwise generates from GUID
-ocp4_workload_litellm_virtual_keys_user_id_format: "{{ email | default(guid + '@lab.opentlc.com') }}"
+# Auto-detect user email from multiple sources (in order of preference):
+# 1. email variable (if catalog explicitly sets it)
+# 2. requester_email (Babylon standard parameter)
+# 3. requester (Babylon annotation - demo.redhat.com/requester)
+# 4. Fall back to guid@lab.opentlc.com
+ocp4_workload_litellm_virtual_keys_user_id_format: "{{ email | default(requester_email | default(requester | default(guid + '@lab.opentlc.com'))) }}"
 
 # -----------------------------------------------------------------------------
 # Metadata for Tracking
 # -----------------------------------------------------------------------------
 # Attached to each key for auditing and management
+# Auto-detects owner from email/requester_email/requester variables
 ocp4_workload_litellm_virtual_keys_metadata:
-  created_by: "agnosticd"
+  created_by: "{{ email | default(requester_email | default(requester | default('agnosticd'))) }}"
   environment: "{{ env_type | default('sandbox') }}"
+  owner: "{{ email | default(requester_email | default(requester | default('unknown'))) }}"
+  catalog_item: "{{ catalog_item | default(catalog_item_name | default('unknown')) }}"
 
 # -----------------------------------------------------------------------------
 # API Settings
