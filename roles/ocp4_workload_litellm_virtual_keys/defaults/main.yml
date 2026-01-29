@@ -51,9 +51,11 @@ ocp4_workload_litellm_virtual_keys_user_id_format: "{{ email | default(requester
 # Metadata for Tracking
 # -----------------------------------------------------------------------------
 # Attached to each key for auditing and management
-# Auto-detects owner from email/requester_email/requester variables
+# - created_by: System that created the key (babylon/agnosticd)
+# - owner: Actual user who owns the key (auto-detected from email/requester)
+# - catalog_item: Catalog item name (auto-detected)
 ocp4_workload_litellm_virtual_keys_metadata:
-  created_by: "{{ email | default(requester_email | default(requester | default('agnosticd'))) }}"
+  created_by: "babylon"
   environment: "{{ env_type | default('sandbox') }}"
   owner: "{{ email | default(requester_email | default(requester | default('unknown'))) }}"
   catalog_item: "{{ catalog_item | default(catalog_item_name | default('unknown')) }}"
