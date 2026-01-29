@@ -76,6 +76,7 @@
 # Step 7: Build Metadata
 # -----------------------------------------------------------------------------
 # Metadata is used for tracking and auditing in LiteLLM
+# Includes owner and catalog_item for better tracking
 - name: Build metadata
   ansible.builtin.set_fact:
     _litellm_metadata:
@@ -85,7 +86,8 @@
       models_count: "{{ _litellm_models | length }}"
       created_by: "{{ ocp4_workload_litellm_virtual_keys_metadata.created_by }}"
       environment: "{{ ocp4_workload_litellm_virtual_keys_metadata.environment }}"
-      catalog_item: "{{ catalog_item | default('unknown') }}"
+      owner: "{{ ocp4_workload_litellm_virtual_keys_metadata.owner }}"
+      catalog_item: "{{ ocp4_workload_litellm_virtual_keys_metadata.catalog_item }}"
 
 # -----------------------------------------------------------------------------
 # Step 8: Display Key Creation Details
