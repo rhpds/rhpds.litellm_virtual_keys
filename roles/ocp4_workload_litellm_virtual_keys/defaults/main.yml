@@ -42,9 +42,14 @@ ocp4_workload_litellm_virtual_keys_alias_format: "virtkey-{{ guid }}"
 # -----------------------------------------------------------------------------
 # Auto-detect user email from multiple sources (in order of preference):
 # 1. email variable (if catalog explicitly sets it)
-# 2. requester_email (Babylon standard parameter)
-# 3. requester (Babylon annotation - demo.redhat.com/requester)
+# 2. requester_email (from includes/parameters/litellm_metadata.yaml)
+# 3. requester (legacy - from requester_parameters if set)
 # 4. Fall back to guid@lab.opentlc.com
+#
+# To enable auto-detection, catalogs should include:
+#   includes:
+#     - includes/parameters/litellm_metadata.yaml
+#
 ocp4_workload_litellm_virtual_keys_user_id_format: "{{ email | default(requester_email | default(requester | default(guid + '@lab.opentlc.com'))) }}"
 
 # -----------------------------------------------------------------------------
@@ -52,8 +57,13 @@ ocp4_workload_litellm_virtual_keys_user_id_format: "{{ email | default(requester
 # -----------------------------------------------------------------------------
 # Attached to each key for auditing and management
 # - created_by: System that created the key (babylon/agnosticd)
-# - owner: Actual user who owns the key (auto-detected from email/requester)
-# - catalog_item: Catalog item name (auto-detected)
+# - owner: Actual user who owns the key (auto-detected from requester_email)
+# - catalog_item: Catalog item name (auto-detected from catalog_item_name)
+#
+# To enable auto-detection, catalogs should include:
+#   includes:
+#     - includes/parameters/litellm_metadata.yaml
+#
 ocp4_workload_litellm_virtual_keys_metadata:
   created_by: "babylon"
   environment: "{{ env_type | default('sandbox') }}"
