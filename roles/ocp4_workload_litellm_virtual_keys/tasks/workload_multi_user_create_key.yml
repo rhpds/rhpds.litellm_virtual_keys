@@ -29,7 +29,8 @@
       models_count: "{{ _litellm_models | length }}"
       created_by: "{{ ocp4_workload_litellm_virtual_keys_metadata.created_by }}"
       environment: "{{ ocp4_workload_litellm_virtual_keys_metadata.environment }}"
-      catalog_item: "{{ catalog_item | default('unknown') }}"
+      owner: "{{ ocp4_workload_litellm_virtual_keys_metadata.owner }}"
+      catalog_item: "{{ catalog_item | default(catalog_item_name | default('unknown')) }}"
 
 # -----------------------------------------------------------------------------
 # Step 3: Call LiteLLM API to Create Key
