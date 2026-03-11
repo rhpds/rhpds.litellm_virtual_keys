@@ -1,0 +1,21 @@
+---
+# =============================================================================
+# LiteLLM Bastion Profile Workload
+# =============================================================================
+# Writes LiteMaaS env vars to /etc/profile.d/litemaas.sh on the bastion
+# so they are available as $LITELLM_API_URL, $LITELLM_API_KEY, $LITELLM_MODELS
+# in the terminal.
+#
+# This role runs on bastions (post_software_final_workloads.bastions).
+# It reads values previously saved by ocp4_workload_litellm_virtual_keys.
+# =============================================================================
+
+- name: Write LiteMaaS vars to /etc/profile.d/litemaas.sh
+  ansible.builtin.copy:
+    dest: /etc/profile.d/litemaas.sh
+    content: |
+      export LITELLM_API_URL="{{ lookup('agnosticd_user_data', 'litellm_api_base_url') | default('') }}"
+      export LITELLM_API_KEY="{{ lookup('agnosticd_user_data', 'litellm_virtual_key') | default('') }}"
+      export LITELLM_MODELS="{{ lookup('agnosticd_user_data', 'litellm_available_models_list') | default('') }}"
+    mode: '0644'
+  become: true
