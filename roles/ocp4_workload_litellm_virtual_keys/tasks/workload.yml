@@ -283,3 +283,20 @@
       litellm_available_models: "{{ litellm_available_models }}"
       litellm_available_models_list: "{{ litellm_available_models | join(', ') }}"
       litellm_key_duration: "{{ litellm_key_duration }}"
+
+# -----------------------------------------------------------------------------
+# Step 15: Write vars to bastion profile (ZTL/Showroom labs)
+# -----------------------------------------------------------------------------
+# Writes $LITELLM_API_URL, $LITELLM_API_KEY, $LITELLM_MODELS to
+# /etc/profile.d/litemaas.sh so they are available in the terminal.
+# Enable by setting ocp4_workload_litellm_virtual_keys_write_bastion_profile: true
+- name: Write LiteMaaS vars to bastion profile.d
+  when: ocp4_workload_litellm_virtual_keys_write_bastion_profile | bool
+  ansible.builtin.copy:
+    dest: /etc/profile.d/litemaas.sh
+    content: |
+      export LITELLM_API_URL="{{ litellm_api_endpoint }}/v1"
+      export LITELLM_API_KEY="{{ litellm_virtual_key }}"
+      export LITELLM_MODELS="{{ litellm_available_models | join(',') }}"
+    mode: '0644'
+  delegate_to: "{{ groups['bastions'][0] }}"
