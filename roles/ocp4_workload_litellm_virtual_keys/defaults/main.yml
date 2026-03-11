@@ -107,6 +107,10 @@ ocp4_workload_litellm_virtual_keys_enable_user_info_data: true
 # in the terminal. Set to true for ZTL/Showroom labs.
 ocp4_workload_litellm_virtual_keys_write_bastion_profile: false
 
+# Ansible inventory group name for the bastion host.
+# Use 'bastions' for RHEL BU labs, 'isolated' for Ansible BU labs.
+ocp4_workload_litellm_virtual_keys_bastion_group: bastions
+
 # Custom user info messages (optional)
 # These will be shown to the user along with the generated key info
 ocp4_workload_litellm_virtual_keys_user_info_messages: []

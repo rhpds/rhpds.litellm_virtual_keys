@@ -299,4 +299,4 @@
       export LITELLM_API_KEY="{{ litellm_virtual_key }}"
       export LITELLM_MODELS="{{ litellm_available_models | join(',') }}"
     mode: '0644'
-  delegate_to: "{{ groups['bastions'][0] }}"
+  delegate_to: "{{ groups[ocp4_workload_litellm_virtual_keys_bastion_group][0] }}"
