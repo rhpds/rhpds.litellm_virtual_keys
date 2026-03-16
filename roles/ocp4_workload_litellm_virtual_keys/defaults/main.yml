@@ -85,6 +85,22 @@ ocp4_workload_litellm_virtual_keys_retry_delay: 5
 ocp4_workload_litellm_virtual_keys_max_budget: null
 
 # -----------------------------------------------------------------------------
+# v0.4.0 Endpoint Capabilities
+# -----------------------------------------------------------------------------
+# /v1/tokenize and /v1/embeddings work automatically with any chat/embedding
+# model already in the key — no extra configuration needed.
+#
+# /docling/v1alpha/convert/source requires a specific model to be added to the
+# key's models list. Set to true for labs that need document conversion.
+ocp4_workload_litellm_virtual_keys_include_tokenize: false
+
+ocp4_workload_litellm_virtual_keys_include_embeddings: false
+ocp4_workload_litellm_virtual_keys_embeddings_model: "nomic-embed-text-v1-5"
+
+ocp4_workload_litellm_virtual_keys_include_docling: false
+ocp4_workload_litellm_virtual_keys_docling_model: "granite-docling-258m"
+
+# -----------------------------------------------------------------------------
 # Output Settings
 # -----------------------------------------------------------------------------
 ocp4_workload_litellm_virtual_keys_store_key_in_facts: true
