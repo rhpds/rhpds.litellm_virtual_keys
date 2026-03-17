@@ -302,28 +302,5 @@
       litellm_key_duration: "{{ litellm_key_duration }}"
       litellm_tokenize_endpoint: "{{ litellm_api_endpoint }}/v1/tokenize"
       litellm_embeddings_endpoint: "{{ litellm_api_endpoint }}/v1/embeddings"
-
-# Save per-model capability flags — only store keys for models that ARE in the key.
-# Undefined attributes cause ifdef:: to hide content; empty strings do NOT.
-- name: Save model capability flags to user data
-  when: ocp4_workload_litellm_virtual_keys_enable_user_info_data | bool
-  vars:
-    _model_flags: >-
-      {{
-        ({'litellm_has_embeddings': 'true'} if 'nomic-embed-text-v1-5' in _litellm_models else {}) |
-        combine({'litellm_has_codellama': 'true'} if 'codellama-7b-instruct' in _litellm_models else {}) |
-        combine({'litellm_has_llama_guard': 'true'} if 'Llama-Guard-3-1B' in _litellm_models else {}) |
-        combine({'litellm_has_deepseek': 'true'} if 'deepseek-r1-distill-qwen-14b' in _litellm_models else {}) |
-        combine({'litellm_has_phi4': 'true'} if 'microsoft-phi-4' in _litellm_models else {}) |
-        combine({'litellm_has_qwen3': 'true'} if 'qwen3-14b' in _litellm_models else {}) |
-        combine({'litellm_has_gpt_oss': 'true'} if 'gpt-oss-120b' in _litellm_models else {}) |
-        combine({'litellm_has_llama_scout': 'true'} if 'llama-scout-17b' in _litellm_models else {}) |
-        combine(
-          {
-            'litellm_docling_endpoint': litellm_api_endpoint + '/docling/v1alpha/convert/source',
-            'litellm_docling_model': ocp4_workload_litellm_virtual_keys_docling_model
-          } if ocp4_workload_litellm_virtual_keys_include_docling | bool else {}
-        )
-      }}
-  rhpds.litellm_virtual_keys.agnosticd_user_info:
-    data: "{{ _model_flags }}"
+      litellm_docling_endpoint: "{{ litellm_api_endpoint + '/docling/v1alpha/convert/source' if ocp4_workload_litellm_virtual_keys_include_docling | bool else '' }}"
+      litellm_docling_model: "{{ ocp4_workload_litellm_virtual_keys_docling_model if ocp4_workload_litellm_virtual_keys_include_docling | bool else '' }}"
