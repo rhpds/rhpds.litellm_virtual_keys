@@ -300,8 +300,6 @@
       litellm_available_models: "{{ litellm_available_models }}"
       litellm_available_models_list: "{{ litellm_available_models | join(', ') }}"
       litellm_key_duration: "{{ litellm_key_duration }}"
-      litellm_tokenize_endpoint: "{{ litellm_api_endpoint }}/v1/tokenize"
-      litellm_embeddings_endpoint: "{{ litellm_api_endpoint }}/v1/embeddings"
 
 - name: Save Docling user data when enabled
   when:
