@@ -307,5 +307,5 @@
     - ocp4_workload_litellm_virtual_keys_include_docling | bool
   rhpds.litellm_virtual_keys.agnosticd_user_info:
     data:
-      litellm_docling_endpoint: "{{ litellm_api_endpoint }}/docling/v1alpha/convert/source"
+      litellm_docling_endpoint: "{{ litellm_api_endpoint }}/docling/v1alpha1/convert/source"
       litellm_docling_model: "{{ ocp4_workload_litellm_virtual_keys_docling_model }}"
