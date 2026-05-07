@@ -7,6 +7,7 @@
   when: ACTION is not defined or agnosticd_action is defined
 
 - name: Running Workload Tasks
+  become: false
   when: ACTION == "create" or ACTION == "provision"
   block:
     - name: Run single-user workload
@@ -21,6 +22,7 @@
 
 - name: Running Workload removal Tasks
   when: ACTION == "destroy" or ACTION == "remove"
+  become: false
   block:
     - name: Run single-user removal
       when: not (ocp4_workload_litellm_virtual_keys_multi_user | bool)
