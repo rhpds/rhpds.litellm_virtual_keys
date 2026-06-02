@@ -9,7 +9,7 @@ Creates and deletes AI model access keys for lab users. Each lab gets a unique k
 ## Authors
 
 - **Prakhar Srivastava** - Manager, Technical Marketing, Red Hat
-- **Ashok Jammula** - Red Hat
+- **Ashok Jammula** - Senior Architect, Red Hat
 
 ### Credits
 
