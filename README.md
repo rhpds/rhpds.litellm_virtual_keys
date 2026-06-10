@@ -2,6 +2,8 @@
 
 Ansible collection for managing LiteLLM virtual keys in Red Hat Demo Platform (RHDP) lab environments.
 
+**CRITICAL NOTICE:** Old cluster `litellm-rhpds` is being decommissioned **June 21, 2026**. All new keys should target the production cluster `maas-rdhp`. Update your `litellm_url` configuration to point to the new cluster.
+
 ## What This Does
 
 Creates and deletes AI model access keys for lab users. Each lab gets a unique key named `virtkey-{GUID}` with access to specific AI models based on subscription tier.
@@ -44,17 +46,48 @@ ansible-playbook playbook.yml \
   -e litellm_master_key=sk-xxxxx
 ```
 
-## Subscription Packages
+## Available Models on maas-rdhp (Production Cluster)
+
+### Vertex AI Models (Restricted Access)
+
+Models requiring admin approval (>120B parameters):
+
+- `minimax-m2` — RESTRICTED (>120B)
+- `qwen3-235b` — RESTRICTED (>120B)
+
+Models with self-service access:
+
+- `gpt-oss-120b` — Open access
+- `gpt-oss-20b` — Open access
+
+### Locally Hosted Models (Self-Service)
+
+- `granite-3-2-8b-instruct`
+- `granite-4-0-h-tiny`
+- `granite-2b-cpu`
+- `llama-scout-17b`
+- `llama-31-70b-cpu`
+- `Llama-Guard-3-1B`
+- `codellama-7b-instruct`
+- `deepseek-r1-distill-qwen-14b`
+- `qwen3-14b`
+- `qwen25-3b-cpu`
+- `microsoft-phi-4`
+- `phi3-mini-cpu`
+- `nomic-embed-text-v1-5`
+- `Docling` — Document conversion
+
+## Subscription Packages (Legacy - Update to maas-rdhp)
 
 Choose what models and how long:
 
-| Package | Models | Duration | Use Case |
-|---------|--------|----------|----------|
-| `ai-beginner` | Granite | 7 days | Intro workshops |
-| `ai-developer` | Granite + Mistral | 30 days | Developer labs (default) |
-| `ai-researcher` | Granite + Mistral + Llama | 90 days | Research projects |
-| `lab-dev` | Granite + Mistral | 14 days | Development testing |
-| `lab-prod` | Granite + Mistral | 90 days | Production labs |
+| Package | Models | Duration | Use Case | Notes |
+|---------|--------|----------|----------|-------|
+| `ai-beginner` | Granite | 7 days | Intro workshops | Update to maas-rdhp |
+| `ai-developer` | Granite + Mistral | 30 days | Developer labs (default) | Update to maas-rdhp |
+| `ai-researcher` | Granite + Mistral + Llama | 90 days | Research projects | Update to maas-rdhp |
+| `lab-dev` | Granite + Mistral | 14 days | Development testing | Update to maas-rdhp |
+| `lab-prod` | Granite + Mistral | 90 days | Production labs | Update to maas-rdhp |
 
 ## How It Works with AgnosticD
 
@@ -63,11 +96,13 @@ Choose what models and how long:
 When you create a key, users receive an email with:
 
 ```
-LiteLLM API Endpoint: https://litellm-rhpds.apps.cluster.com/v1
+LiteLLM API Endpoint: https://maas-rdhp.apps.cluster.com/v1
 LiteLLM Virtual Key: sk-abc123xyz...
-Available Models: openai/granite-3-2-8b-instruct, openai/mistral-7b-instruct
+Available Models: granite-3-2-8b-instruct, deepseek-r1-distill-qwen-14b
 Key Duration: 30d
 ```
+
+**Note:** Update all references from `https://litellm-rhpds.apps.cluster.com` to `https://maas-rdhp.apps.cluster.com` before June 21, 2026.
 
 These messages come from the `agnosticd_user_info` module and appear in:
 - User provisioning emails
@@ -94,6 +129,8 @@ This data is accessible via:
 - AgnosticD variables and facts
 - RHDP API endpoints
 - User info JSON exports
+
+**MIGRATION:** Ensure all endpoint references use `maas-rdhp` (production cluster) instead of the deprecated `litellm-rhpds` cluster, which shuts down June 21, 2026.
 
 ### How to Enable User Info
 
