@@ -101,6 +101,7 @@
 
 - name: Extract keys list from response
   when:
+    - _litellm_key_list.status is defined
     - _litellm_key_list.status == 200
     - _litellm_key_list.json.keys is defined
   ansible.builtin.set_fact:
