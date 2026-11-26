@@ -75,75 +75,54 @@
       - "========================================="
 
 # -----------------------------------------------------------------------------
-# Step 4: List All Keys and Find the One to Delete
+# Step 4: Find Key to Delete
 # -----------------------------------------------------------------------------
-# Strategy:
-# 1. Get list of all token hashes from /key/list
-# 2. For each token, get detailed info from /key/info?key={token}
-# 3. Find the one matching our alias
-- name: List all virtual key token hashes
-  ansible.builtin.uri:
-    url: "{{ _litellm_api_endpoint }}/key/list"
-    method: GET
-    headers:
-      Authorization: "Bearer {{ litellm_master_key }}"
-      Content-Type: "application/json"
-    validate_certs: "{{ ocp4_workload_litellm_virtual_keys_verify_ssl }}"
-    timeout: "{{ ocp4_workload_litellm_virtual_keys_api_timeout }}"
-    status_code: [200]
-  register: _litellm_key_list
-  failed_when: false
-
 - name: Initialize variables
   ansible.builtin.set_fact:
     _litellm_found_key_hash: ""
     _litellm_key_exists: false
 
-- name: Extract keys list from response
-  when:
-    - _litellm_key_list.status is defined
-    - _litellm_key_list.status == 200
-    - _litellm_key_list.json.keys is defined
-  ansible.builtin.set_fact:
-    _litellm_keys_array: "{{ _litellm_key_list.json['keys'] }}"
-
-- name: Search for key by alias
-  when:
-    - _litellm_keys_array is defined
-    - _litellm_keys_array | length > 0
+# By alias: query /key/list?key_alias=X&return_full_object=true for a direct
+# server-side lookup. This avoids the old iterate-all-keys approach that only
+# saw page 1 and silently missed keys beyond it.
+- name: Look up key by alias
+  when: ocp4_workload_litellm_virtual_keys_delete_method == "by_alias"
   block:
-    - name: Get detailed info for each key and find matching alias
+    - name: Query LiteLLM API for key by alias
       ansible.builtin.uri:
-        url: "{{ _litellm_api_endpoint }}/key/info?key={{ item }}"
+        url: "{{ _litellm_api_endpoint }}/key/list?key_alias={{ _litellm_key_to_delete | urlencode }}&return_full_object=true"
         method: GET
         headers:
           Authorization: "Bearer {{ litellm_master_key }}"
           Content-Type: "application/json"
         validate_certs: "{{ ocp4_workload_litellm_virtual_keys_verify_ssl }}"
         timeout: "{{ ocp4_workload_litellm_virtual_keys_api_timeout }}"
-        status_code: [200, 404]
-      register: _litellm_key_details
-      loop: "{{ _litellm_keys_array }}"
-      failed_when: false
+        status_code: [200]
+      register: _litellm_key_lookup
+      retries: "{{ ocp4_workload_litellm_virtual_keys_retry_count }}"
+      delay: "{{ ocp4_workload_litellm_virtual_keys_retry_delay }}"
+      until: _litellm_key_lookup is succeeded
 
-    - name: Find key with matching alias
+    - name: Set key hash from alias lookup
       ansible.builtin.set_fact:
-        _litellm_found_key_hash: "{{ item.json.key }}"
+        _litellm_found_key_hash: "{{ (_litellm_key_lookup.json.keys | selectattr('key_alias', 'equalto', _litellm_key_to_delete) | list | first).token }}"
         _litellm_key_exists: true
       when:
-        - item.status == 200
-        - item.json.info is defined
-        - item.json.info.key_alias is defined
-        - item.json.info.key_alias == _litellm_key_to_delete
-      loop: "{{ _litellm_key_details.results }}"
-      loop_control:
-        label: "{{ item.json.info.key_alias if (item.status == 200 and item.json.info is defined and item.json.info.key_alias is defined) else 'N/A' }}"
+        - _litellm_key_lookup.json.keys is defined
+        - _litellm_key_lookup.json.keys | selectattr('key_alias', 'equalto', _litellm_key_to_delete) | list | length > 0
+
+# By key_id: use the token hash directly (no lookup needed)
+- name: Set key hash for direct key_id deletion
+  when: ocp4_workload_litellm_virtual_keys_delete_method == "by_key_id"
+  ansible.builtin.set_fact:
+    _litellm_found_key_hash: "{{ ocp4_workload_litellm_virtual_keys_key_id }}"
+    _litellm_key_exists: true
 
 - name: Debug key search results
   ansible.builtin.debug:
     msg:
       - "Key search results:"
-      - "  Looking for alias: {{ _litellm_key_to_delete }}"
+      - "  Looking for: {{ _litellm_deletion_label }}"
       - "  Key found: {{ _litellm_key_exists }}"
       - "  Token hash: {{ _litellm_found_key_hash if _litellm_found_key_hash else 'N/A' }}"
 
@@ -195,8 +174,9 @@
         seconds: 2
 
     - name: Verify key was deleted
+      when: ocp4_workload_litellm_virtual_keys_delete_method == "by_alias"
       ansible.builtin.uri:
-        url: "{{ _litellm_api_endpoint }}/key/info"
+        url: "{{ _litellm_api_endpoint }}/key/list?key_alias={{ _litellm_key_to_delete | urlencode }}&return_full_object=true"
         method: GET
         headers:
           Authorization: "Bearer {{ litellm_master_key }}"
@@ -209,8 +189,13 @@
 
     - name: Check if key still exists after deletion
       ansible.builtin.set_fact:
-        _litellm_key_still_exists: "{{ _litellm_verify_delete.json.keys | selectattr('key_alias', 'equalto', _litellm_key_to_delete) | list | length > 0 }}"
+        _litellm_key_still_exists: >-
+          {{ _litellm_verify_delete.json.keys
+             | selectattr('key_alias', 'equalto', _litellm_key_to_delete)
+             | list | length > 0 }}
       when:
+        - ocp4_workload_litellm_virtual_keys_delete_method == "by_alias"
+        - _litellm_verify_delete.status is defined
         - _litellm_verify_delete.status == 200
         - _litellm_verify_delete.json.keys is defined
 
@@ -250,7 +235,7 @@
 
         - name: Verify database deletion
           ansible.builtin.uri:
-            url: "{{ _litellm_api_endpoint }}/key/info"
+            url: "{{ _litellm_api_endpoint }}/key/list?key_alias={{ _litellm_key_to_delete | urlencode }}&return_full_object=true"
             method: GET
             headers:
               Authorization: "Bearer {{ litellm_master_key }}"
@@ -263,8 +248,12 @@
 
         - name: Check final deletion status
           ansible.builtin.set_fact:
-            _litellm_key_finally_deleted: "{{ _litellm_final_verify.json.keys | selectattr('key_alias', 'equalto', _litellm_key_to_delete) | list | length == 0 }}"
+            _litellm_key_finally_deleted: >-
+              {{ _litellm_final_verify.json.keys
+                 | selectattr('key_alias', 'equalto', _litellm_key_to_delete)
+                 | list | length == 0 }}
           when:
+            - _litellm_final_verify.status is defined
             - _litellm_final_verify.status == 200
             - _litellm_final_verify.json.keys is defined
 
@@ -274,7 +263,7 @@
               - "========================================="
               - "Database Deletion Complete"
               - "========================================="
-              - "Key {{ _litellm_key_to_delete }}: {{ 'DELETED' if _litellm_key_finally_deleted else 'STILL EXISTS' }}"
+              - "Key {{ _litellm_key_to_delete }}: {{ 'DELETED' if (_litellm_key_finally_deleted | default(false)) else 'STILL EXISTS' }}"
               - "========================================="
 
     - name: Display deletion success
